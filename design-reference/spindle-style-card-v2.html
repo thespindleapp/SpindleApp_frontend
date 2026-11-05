@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spindle — Style card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:        #F4EFE5;
+  --paper-deep:   #ECE5D6;
+  --surface:      #FBF8F0;
+  --surface-2:    #F8F4EA;
+  --ink:          #14110C;
+  --ink-soft:     #595142;
+  --ink-muted:    #8A8270;
+  --ink-faint:    #B6AC93;
+  --hairline:     #DDD3C0;
+  --hairline-strong: #C9BFA8;
+  --ochre:         #B07527;
+  --ochre-deep:    #8C5A1B;
+  --ochre-soft:    rgba(176, 117, 39, 0.12);
+  --green:        #5C8A4A;
+  --red:          #B23A3A;
+  --blue:         #4F6F94;
+  --khaki:        #998562;
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--paper); color: var(--ink); font-family: 'Geist', system-ui, sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+input { font: inherit; color: inherit; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; border-bottom: 1px solid var(--hairline); background: var(--surface); }
+.brand { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 22px; }
+.brand .dot { color: var(--ochre); }
+.topnav { display: flex; gap: 22px; font-size: 13px; color: var(--ink-muted); }
+.topnav a.current { color: var(--ink); font-weight: 500; }
+.topnav a:hover { color: var(--ink); }
+
+.wrap { max-width: 960px; margin: 0 auto; padding: 32px 24px 90px; }
+
+/* Header */
+.crumb { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ochre-deep); margin-bottom: 6px; }
+.head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.card-head h1 { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; font-size: 34px; }
+.jump-review { font-size: 12.5px; color: var(--ochre-deep); font-weight: 500; background: var(--ochre-soft); padding: 6px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; }
+.jump-review.hidden { display: none; }
+.jump-review .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ochre); }
+
+.head-main { display: flex; gap: 20px; align-items: flex-start; }
+.style-image {
+  width: 96px; height: 116px; flex-shrink: 0; border-radius: 10px;
+  background: var(--surface-2); border: 1px dashed var(--hairline-strong);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  color: var(--ink-faint); text-align: center; padding: 8px;
+}
+.style-image svg { width: 30px; height: 30px; opacity: 0.55; }
+.style-image .lbl { font-size: 9.5px; line-height: 1.3; }
+.style-image.has-photo { border-style: solid; background: linear-gradient(135deg, #C97F66 0%, #D8A5A1 100%); }
+.head-fields { flex: 1; min-width: 0; }
+
+.facts-row { margin-top: 14px; display: flex; gap: 26px; flex-wrap: wrap; padding-bottom: 20px; border-bottom: 1px solid var(--hairline); }
+.fact .l { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); }
+.fact .v { font-size: 16px; font-weight: 500; margin-top: 2px; }
+.fact .v small { font-size: 11px; color: var(--ochre-deep); font-weight: 400; display: block; margin-top: 1px; }
+
+/* Approval timeline — compact, replaces a plain "Stage: PP" line */
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin: 28px 0 14px; flex-wrap: wrap; gap: 6px; }
+.sec-head .ttl { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted); font-weight: 500; }
+.sec-head .ttl em { font-style: normal; color: var(--ink-faint); margin-left: 8px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.sec-head .meta { font-size: 11.5px; color: var(--ink-faint); }
+
+.timeline { display: flex; align-items: center; padding: 6px 4px 4px; }
+.tl-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; position: relative; }
+.tl-step .mark { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--hairline-strong); display: grid; place-items: center; font-size: 9px; color: #fff; z-index: 1; }
+.tl-step.done .mark { background: var(--green); border-color: var(--green); }
+.tl-step.current .mark { background: var(--ochre); border-color: var(--ochre); }
+.tl-step .name { font-size: 10.5px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em; font-family: 'JetBrains Mono', monospace; }
+.tl-step.current .name, .tl-step.done .name { color: var(--ink-soft); font-weight: 500; }
+.tl-step:not(:last-child)::after { content: ''; position: absolute; top: 7px; left: 55%; width: 90%; height: 2px; background: var(--hairline-strong); z-index: 0; }
+.tl-step.done:not(:last-child)::after { background: var(--green); }
+
+/* To confirm — compact single-line rows */
+#toConfirmSec.empty { display: none; }
+#toConfirmSec .sec-head .ttl { color: var(--ochre-deep); }
+.confirm-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--surface); border: 1px solid rgba(176,117,39,0.25); border-radius: 10px; padding: 12px 16px; }
+.confirm-row .what { font-size: 13.5px; }
+.confirm-row .what b { font-weight: 600; }
+.confirm-row .to { color: var(--ochre-deep); font-weight: 600; }
+.confirm-row .evidence { font-size: 11.5px; color: var(--ink-faint); margin-left: 2px; }
+.confirm-row .evidence a { color: var(--blue); }
+.confirm-actions { display: flex; gap: 6px; margin-left: auto; align-items: center; flex-wrap: wrap; }
+.btn { padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; border: 1px solid var(--hairline-strong); white-space: nowrap; }
+.btn-keep { background: #fff; }
+.btn-keep:hover { background: var(--surface-2); }
+.btn-accept { background: var(--ochre); color: #fff; border-color: var(--ochre); }
+.btn-accept:hover { background: var(--ochre-deep); }
+.btn-correct { background: #fff; color: var(--ink-soft); }
+.correct-input { display: none; align-items: center; gap: 6px; }
+.correct-input.show { display: flex; }
+.correct-input input { border: 1px solid var(--hairline-strong); border-radius: 6px; padding: 5px 8px; width: 80px; font-size: 12.5px; }
+.correct-input button { background: var(--ink); color: var(--paper); padding: 5px 10px; border-radius: 6px; font-size: 11.5px; }
+.resolved-tag { font-size: 12px; color: var(--green); font-weight: 500; display: none; margin-left: auto; }
+.resolved-tag.show { display: inline; }
+
+/* Grouped details — quiet by default, two groups side by side */
+.group-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 700px) { .group-row { grid-template-columns: 1fr; } }
+.group-box { background: #fff; border: 1px solid var(--hairline); border-radius: 12px; }
+.group-box .gb-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-muted); padding: 12px 16px 0; }
+.detail { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--hairline); }
+.group-box .detail:last-child { border-bottom: 0; }
+.detail .k { color: var(--ink-muted); font-size: 12.5px; }
+.detail .v { text-align: right; display: flex; align-items: baseline; gap: 7px; justify-content: flex-end; }
+.detail .v .val-num { font-size: 16px; font-weight: 600; }
+.detail .v .tag {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+  color: var(--ink-faint); background: var(--surface-2); border: 1px solid var(--hairline);
+  padding: 2px 6px; border-radius: 9px; white-space: nowrap;
+}
+.detail .v .rejected-note { display: block; font-size: 11px; font-weight: 400; color: var(--ink-faint); margin-top: 1px; }
+.detail .v .rejected-note s { color: var(--red); opacity: 0.7; }
+
+/* Conversation digest */
+.thread-list { background: #fff; border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; }
+.thread-item { display: flex; gap: 12px; align-items: baseline; padding: 11px 16px; border-bottom: 1px solid var(--hairline); cursor: pointer; transition: background 140ms var(--ease-out); }
+.thread-item:last-child { border-bottom: 0; }
+.thread-item:hover { background: var(--surface-2); }
+.thread-item .who { font-weight: 500; font-size: 13px; flex-shrink: 0; width: 230px; }
+.thread-item .snippet { font-size: 12.5px; color: var(--ink-soft); flex: 1; }
+.thread-item .when { font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+@media (max-width: 640px) { .thread-item { flex-wrap: wrap; } .thread-item .who { width: auto; } }
+
+/* Files — visual preview grid like the original */
+.attach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.attach { border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden; background: #fff; cursor: pointer; transition: border-color 140ms var(--ease-out); }
+.attach:hover { border-color: var(--hairline-strong); }
+.attach .preview { height: 72px; background: var(--surface-2); display: flex; align-items: flex-end; justify-content: flex-start; padding: 8px; font-size: 11px; color: var(--ink-muted); position: relative; }
+.attach .preview .ext { position: absolute; top: 8px; right: 8px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; background: var(--ink); color: var(--paper); padding: 2px 5px; border-radius: 4px; }
+.attach .preview.img-fab { background: var(--khaki); background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.08) 0 1px, transparent 1px 4px); color: transparent; }
+.attach .preview.img-sample { background: linear-gradient(135deg, #C97F66 0%, #D8A5A1 100%); color: transparent; }
+.attach .info { padding: 8px 10px 10px; }
+.attach .name { font-size: 12px; color: var(--ink); font-weight: 500; line-height: 1.3; }
+.attach .meta { font-size: 10.5px; color: var(--ink-faint); display: flex; justify-content: space-between; margin-top: 3px; }
+
+/* Collapsed full history */
+.history-disclosure { margin-top: 30px; }
+.history-disclosure summary { cursor: pointer; font-size: 12.5px; color: var(--ink-muted); padding: 8px 0; list-style: none; display: flex; align-items: center; gap: 6px; }
+.history-disclosure summary::-webkit-details-marker { display: none; }
+.history-disclosure summary:before { content: '▸'; font-size: 10px; }
+.history-disclosure[open] summary:before { content: '▾'; }
+.log-item { display: grid; grid-template-columns: 90px 1fr auto; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--hairline); font-size: 12px; }
+.log-item:last-child { border-bottom: 0; }
+.log-field { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); }
+.log-what { color: var(--ink-soft); }
+.log-what strong { color: var(--ink); }
+.log-who { color: var(--ink-faint); text-align: right; white-space: nowrap; }
+.log-item.is-new { animation: flash 1200ms var(--ease-out); }
+@keyframes flash { from { background: var(--ochre-soft); } to { background: transparent; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Spindle<span class="dot">.</span></div>
+  <div class="topnav">
+    <a href="spindle-board-v2.html">← Board</a>
+    <a href="#" class="current">Style card</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="head-main">
+    <div class="style-image" title="No photo confirmed yet — will auto-fill from an attachment once one's tagged as the hero shot">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 5 L7 3 L5 5 L3 7 L3 19 L21 19 L21 7 L19 5 L17 3 L15 5 Z"/><path d="M9 5 Q12 8 15 5"/></svg>
+      <div class="lbl">No photo yet</div>
+    </div>
+    <div class="head-fields">
+      <div class="crumb">Reluebelu</div>
+      <div class="head-row">
+        <div class="card-head"><h1>Floral Wrap Dress</h1></div>
+        <a class="jump-review" id="jumpReview" href="#toConfirmSec"><span class="dot"></span>1 to confirm</a>
+      </div>
+
+      <div class="facts-row">
+        <div class="fact"><div class="l">Style</div><div class="v">7458890</div></div>
+        <div class="fact"><div class="l">Quantity</div><div class="v" id="factQty">800<small id="factQtyNote">1200 proposed</small></div></div>
+        <div class="fact"><div class="l">Cost (FOB)</div><div class="v">$14.20</div></div>
+        <div class="fact"><div class="l">Colour</div><div class="v">Floral print</div></div>
+        <div class="fact"><div class="l">Delivery</div><div class="v">18 Nov</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPROVAL TIMELINE -->
+  <div class="sec-head"><span class="ttl">Approval timeline <em>6 stages · currently PP</em></span></div>
+  <div class="timeline">
+    <div class="tl-step done"><div class="mark">✓</div><div class="name">Lab Dip</div></div>
+    <div class="tl-step done"><div class="mark">✓</div><div class="name">Proto</div></div>
+    <div class="tl-step done"><div class="mark">✓</div><div class="name">SMS</div></div>
+    <div class="tl-step current"><div class="mark">●</div><div class="name">PP</div></div>
+    <div class="tl-step"><div class="mark"></div><div class="name">Bulk</div></div>
+    <div class="tl-step"><div class="mark"></div><div class="name">Ship</div></div>
+  </div>
+
+  <!-- TO CONFIRM -->
+  <div id="toConfirmSec">
+    <div class="sec-head"><span class="ttl">To confirm</span></div>
+    <div class="confirm-row" id="qtyConfirmRow">
+      <div class="what">
+        <b>Quantity</b> — 800 confirmed → <span class="to">1200 proposed</span>
+        <span class="evidence">"Quantity: 1200 pcs" · <a href="#">Re: Style 7458890</a></span>
+      </div>
+      <div class="confirm-actions" id="qtyActions">
+        <button class="btn btn-keep" onclick="resolveQty('keep')">Keep 800</button>
+        <button class="btn btn-accept" onclick="resolveQty('accept')">Accept 1200</button>
+        <button class="btn btn-correct" onclick="toggleCorrect()">Correct…</button>
+        <div class="correct-input" id="correctInput">
+          <input type="number" id="correctValue" placeholder="Value">
+          <button onclick="resolveQty('correct')">Save</button>
+        </div>
+      </div>
+      <div class="resolved-tag" id="resolvedTag"></div>
+    </div>
+  </div>
+
+  <!-- GROUPED DETAILS -->
+  <div class="sec-head"><span class="ttl">Details</span></div>
+  <div class="group-row">
+    <div class="group-box">
+      <div class="gb-title">Production</div>
+      <div class="detail"><div class="k">Fabric</div><div class="v"><span class="val-num">Viscose</span><span class="tag">Confirmed</span></div></div>
+      <div class="detail" title="Navy was proposed and rejected on 1 Oct">
+        <div class="k">Colour</div>
+        <div class="v" style="flex-direction:column; align-items:flex-end;">
+          <span style="display:flex; gap:7px; align-items:baseline;"><span class="val-num">Floral print</span><span class="tag">Confirmed</span></span>
+          <span class="rejected-note"><s>Navy</s> rejected</span>
+        </div>
+      </div>
+      <div class="detail"><div class="k">Construction</div><div class="v"><span class="val-num">Wrap tie, lined</span><span class="tag">Confirmed</span></div></div>
+    </div>
+    <div class="group-box">
+      <div class="gb-title">Commercials</div>
+      <div class="detail"><div class="k">Quantity</div><div class="v"><span class="val-num" id="detailQtyNum">800</span><span class="tag" id="detailQtyTag">Confirmed</span></div></div>
+      <div class="detail"><div class="k">Cost (FOB)</div><div class="v"><span class="val-num">$14.20</span><span class="tag">Confirmed</span></div></div>
+      <div class="detail"><div class="k">Delivery</div><div class="v"><span class="val-num">18 Nov</span><span class="tag">Confirmed</span></div></div>
+    </div>
+  </div>
+
+  <!-- CONVERSATION DIGEST -->
+  <div class="sec-head">
+    <span class="ttl">Conversation <em>5 messages</em></span>
+    <span class="meta">Tap any line to open the original</span>
+  </div>
+  <div class="thread-list">
+    <div class="thread-item"><div class="who">Initial development brief</div><div class="snippet">Tech pack and costing attached for review, quantity TBC pending forecast…</div><div class="when">12 days ago</div></div>
+    <div class="thread-item"><div class="who">Re: Style 7458890</div><div class="snippet">Quantity: 480 pcs for the first drop, confirming floral print colourway…</div><div class="when">9 days ago</div></div>
+    <div class="thread-item"><div class="who">Re: Style 7458890 — lab dip</div><div class="snippet">Lab dip approved, PP sample to follow. Approval attached.</div><div class="when">6 days ago</div></div>
+    <div class="thread-item"><div class="who">Re: Style 7458890 — PP sample approved</div><div class="snippet">PP sample approved, moving to bulk prep. Photo attached.</div><div class="when">2 days ago</div></div>
+    <div class="thread-item"><div class="who">Re: Style 7458890</div><div class="snippet">Quantity: 1200 pcs — forecast update, please confirm before cutting.</div><div class="when">3 hours ago</div></div>
+  </div>
+
+  <!-- FILES — visual grid, like the original -->
+  <div class="sec-head">
+    <span class="ttl">Files <em>4 attachments</em></span>
+    <span class="meta">Click to preview</span>
+  </div>
+  <div class="attach-grid">
+    <div class="attach">
+      <div class="preview"><span class="ext">PDF</span>tech pack</div>
+      <div class="info"><div class="name">tech_pack_v2.pdf</div><div class="meta"><span>3.8 MB</span><span>12d</span></div></div>
+    </div>
+    <div class="attach">
+      <div class="preview"><span class="ext">XLS</span>costing</div>
+      <div class="info"><div class="name">costing_sheet.xlsx</div><div class="meta"><span>31 KB</span><span>12d</span></div></div>
+    </div>
+    <div class="attach">
+      <div class="preview"><span class="ext">PDF</span>lab dip</div>
+      <div class="info"><div class="name">lab_dip_approval.pdf</div><div class="meta"><span>210 KB</span><span>6d</span></div></div>
+    </div>
+    <div class="attach">
+      <div class="preview img-sample"><span class="ext">JPG</span></div>
+      <div class="info"><div class="name">pp_sample_photo.jpg</div><div class="meta"><span>2.4 MB</span><span>2d</span></div></div>
+    </div>
+  </div>
+
+  <!-- COLLAPSED FULL HISTORY -->
+  <details class="history-disclosure">
+    <summary>Full field history — every proposal, confirm, correct and reject</summary>
+    <div id="logList">
+      <div class="log-item"><div class="log-field">Quantity</div><div class="log-what"><strong>480</strong> proposed by parser</div><div class="log-who">9 days ago</div></div>
+      <div class="log-item"><div class="log-field">Quantity</div><div class="log-what"><strong>480</strong> confirmed by Priya</div><div class="log-who">9 days ago</div></div>
+      <div class="log-item"><div class="log-field">Quantity</div><div class="log-what"><strong>800</strong> proposed by parser</div><div class="log-who">6 days ago</div></div>
+      <div class="log-item"><div class="log-field">Quantity</div><div class="log-what"><strong>800</strong> corrected by Priya</div><div class="log-who">6 days ago</div></div>
+      <div class="log-item"><div class="log-field">Colour</div><div class="log-what"><strong>Navy</strong> proposed by parser</div><div class="log-who">1 day ago</div></div>
+      <div class="log-item"><div class="log-field">Colour</div><div class="log-what"><strong>Navy</strong> rejected by Priya — Floral print confirmed instead</div><div class="log-who">1 day ago</div></div>
+      <div class="log-item"><div class="log-field">Quantity</div><div class="log-what"><strong>1200</strong> proposed by parser — flagged, contradicts confirmed 800</div><div class="log-who">3 hours ago</div></div>
+    </div>
+  </details>
+
+</div>
+
+<script>
+function toggleCorrect() { document.getElementById('correctInput').classList.toggle('show'); }
+
+function resolveQty(kind) {
+  const factQtyNote = document.getElementById('factQtyNote');
+  const factQty = document.getElementById('factQty');
+  const detailQtyNum = document.getElementById('detailQtyNum');
+  const toConfirmSec = document.getElementById('toConfirmSec');
+  const jumpReview = document.getElementById('jumpReview');
+  const resolvedTag = document.getElementById('resolvedTag');
+  const qtyActions = document.getElementById('qtyActions');
+  const logList = document.getElementById('logList');
+
+  let finalValue, logText;
+  if (kind === 'keep') { finalValue = 800; logText = '<strong>1200</strong> proposal reviewed — kept existing <strong>800</strong>'; }
+  else if (kind === 'accept') { finalValue = 1200; logText = '<strong>1200</strong> accepted by Priya'; }
+  else {
+    const v = document.getElementById('correctValue').value;
+    if (!v) return;
+    finalValue = v;
+    logText = '<strong>' + v + '</strong> entered by Priya — corrected, not the proposed 1200';
+  }
+
+  factQty.childNodes[0].textContent = finalValue;
+  factQtyNote.style.display = 'none';
+  detailQtyNum.textContent = finalValue;
+  qtyActions.style.display = 'none';
+  resolvedTag.textContent = 'Resolved — ' + finalValue + ' confirmed';
+  resolvedTag.classList.add('show');
+  jumpReview.classList.add('hidden');
+
+  setTimeout(() => { toConfirmSec.classList.add('empty'); }, 900);
+
+  const item = document.createElement('div');
+  item.className = 'log-item is-new';
+  item.innerHTML = '<div class="log-field">Quantity</div><div class="log-what">' + logText + '</div><div class="log-who">just now</div>';
+  logList.appendChild(item);
+}
+</script>
+
+</body>
+</html>

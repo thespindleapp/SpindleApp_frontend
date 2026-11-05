@@ -1,0 +1,1586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spindle — Jasmine Emb Jacket · 6601234</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --paper:        #F4EFE5;
+  --paper-deep:   #ECE5D6;
+  --surface:      #FBF8F0;
+  --surface-2:    #F8F4EA;
+  --ink:          #14110C;
+  --ink-soft:     #595142;
+  --ink-muted:    #8A8270;
+  --ink-faint:    #B6AC93;
+  --hairline:     #DDD3C0;
+  --hairline-strong: #C9BFA8;
+  --ochre:         #B07527;
+  --ochre-deep:    #8C5A1B;
+  --ochre-wash:    rgba(232, 198, 121, 0.55);
+  --ochre-soft:    rgba(176, 117, 39, 0.10);
+  --green:        #5C8A4A;
+  --green-soft:   rgba(92, 138, 74, 0.10);
+  --red:          #B23A3A;
+  --red-soft:     rgba(178, 58, 58, 0.10);
+  --blue:         #4F6F94;
+  --blue-soft:    rgba(79, 111, 148, 0.08);
+  --khaki:        #998562;     /* swatch colour for this style */
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: 14px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--ochre-wash); color: var(--ink); }
+
+.grain {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 100;
+  opacity: 0.3; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.078  0 0 0 0 0.067  0 0 0 0 0.047  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ═════════ APP ═════════ */
+.app {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100dvh;
+}
+@media (max-width: 880px) { .app { grid-template-columns: 1fr; } }
+
+/* ═════════ SIDEBAR ═════════ */
+.side {
+  background: var(--paper-deep);
+  border-right: 1px solid var(--hairline);
+  padding: 22px 18px;
+  display: flex; flex-direction: column;
+  gap: 28px;
+  position: sticky; top: 0;
+  height: 100dvh;
+}
+@media (max-width: 880px) { .side { display: none; } }
+.brand {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  user-select: none;
+}
+.brand .mark {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 28px; line-height: 1;
+  letter-spacing: -0.02em;
+}
+.brand .mark::after {
+  content: '';
+  display: inline-block;
+  width: 5px; height: 5px;
+  margin-left: 2px;
+  border-radius: 999px;
+  background: var(--ochre);
+  transform: translateY(-2px);
+}
+.side-section { display: flex; flex-direction: column; gap: 2px; }
+.side-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0 8px 8px;
+  font-weight: 500;
+}
+.side a {
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.side a:hover { background: rgba(20,17,12,0.04); color: var(--ink); }
+.side a.active { background: var(--ink); color: var(--paper); font-weight: 500; }
+.side a .count {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; opacity: 0.6;
+}
+.side a.active .count { opacity: 0.7; }
+.side .acct {
+  margin-top: auto;
+  display: grid; grid-template-columns: 28px 1fr; gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-top: 1px solid var(--hairline);
+}
+.side .acct .av {
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #C49449, #8C5A1B);
+  color: #fff;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
+}
+.side .acct .who { font-size: 12.5px; color: var(--ink); font-weight: 500; }
+.side .acct .role {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ═════════ MAIN ═════════ */
+.main { padding: 0; min-width: 0; }
+
+/* TOP BAR */
+.top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper);
+  position: sticky; top: 0; z-index: 20;
+  backdrop-filter: saturate(140%) blur(8px);
+  -webkit-backdrop-filter: saturate(140%) blur(8px);
+}
+.crumb {
+  display: flex; gap: 8px; align-items: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.crumb .sep { opacity: 0.5; }
+.crumb .here { color: var(--ink); }
+.top-actions { display: flex; gap: 8px; align-items: center; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px; font-weight: 500;
+  border: 1px solid transparent;
+  transition: transform 140ms var(--ease-out), background 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.btn-primary { background: var(--ink); color: var(--paper); }
+.btn-primary:hover { background: #28221A; }
+.btn-primary:active { transform: scale(0.97); }
+.btn-secondary { background: #fff; color: var(--ink); border-color: var(--hairline-strong); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--ink-faint); }
+.btn-ghost { color: var(--ink-soft); }
+.btn-ghost:hover { color: var(--ink); }
+.btn-accent { background: var(--ochre); color: var(--ink); }
+.btn-accent:hover { background: #C4842F; }
+.btn-accent:active { transform: scale(0.97); }
+.btn-sm { height: 26px; padding: 0 10px; font-size: 12px; border-radius: 6px; }
+
+/* ═════════ HERO ═════════ */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(24px, 4vw, 56px);
+  padding: clamp(36px, 5vw, 56px) 28px clamp(28px, 4vw, 40px);
+  align-items: start;
+}
+@media (max-width: 980px) { .hero { grid-template-columns: 1fr; } }
+
+/* ── IMAGE COLUMN ── */
+.img-stack {
+  display: grid; gap: 14px;
+}
+.flat-frame {
+  background: #FFFEFB;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 28px 28px 22px;
+  position: relative;
+  overflow: hidden;
+}
+/* dotted-grid paper background for the technical sketch */
+.flat-frame::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, var(--hairline) 0.6px, transparent 0.6px);
+  background-size: 14px 14px;
+  background-position: 7px 7px;
+  opacity: 0.45;
+  pointer-events: none;
+}
+.flat-frame > * { position: relative; }
+.flat-corner {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: flex; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.flat-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  max-width: 320px;
+}
+.flat-svg .ink-line { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.flat-svg .ink-thin { fill: none; stroke: var(--ink); stroke-width: 0.9; stroke-linecap: round; stroke-linejoin: round; }
+.flat-svg .ink-dash { fill: none; stroke: var(--ink-soft); stroke-width: 0.8; stroke-dasharray: 2 2; stroke-linecap: round; }
+.flat-svg .embr     { fill: var(--ochre); }
+.flat-svg .embr-line { fill: none; stroke: var(--ochre); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+
+.flat-foot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+  gap: 12px;
+}
+.flat-foot .ttl {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.flat-foot .src {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.flat-foot a {
+  font-size: 11.5px;
+  color: var(--ochre-deep);
+  border-bottom: 1px dotted var(--hairline-strong);
+  padding-bottom: 1px;
+}
+
+/* Thumbnails strip */
+.thumbs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.thumb {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color 160ms var(--ease-out);
+}
+.thumb:hover { border-color: var(--hairline-strong); }
+.thumb .swatch {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.thumb .swatch.fabric {
+  background: var(--khaki);
+  /* subtle diagonal weave */
+  background-image:
+    repeating-linear-gradient(45deg, rgba(0,0,0,0.06) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 4px),
+    var(--khaki);
+}
+.thumb .swatch.lab {
+  background: linear-gradient(135deg, #A38E69 0%, #8E7A56 100%);
+  /* subtle texture lines */
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 5px),
+    linear-gradient(135deg, #A38E69 0%, #8E7A56 100%);
+}
+.thumb .swatch.lab::after {
+  content: 'pending';
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  color: rgba(255,255,255,0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: rgba(20,17,12,0.4);
+  backdrop-filter: blur(1px);
+}
+.thumb .swatch.embr {
+  background: var(--surface);
+  display: grid; place-items: center;
+}
+.thumb .swatch.embr svg { width: 70%; height: 70%; }
+.thumb .swatch.embr .embr-detail { fill: var(--ochre); }
+.thumb .swatch.embr .embr-line   { stroke: var(--ochre-deep); stroke-width: 0.7; fill: none; }
+.thumb .lbl {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.thumb .v {
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* ── INFO COLUMN ── */
+.info-col { display: grid; gap: 22px; }
+
+.info-head {
+  display: grid; gap: 12px;
+}
+.info-head .style-no {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.info-head h1 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(34px, 4vw, 50px);
+  line-height: 1;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+.info-head .sub {
+  font-size: 14px;
+  color: var(--ink-soft);
+  display: flex; gap: 16px; flex-wrap: wrap;
+  align-items: center;
+}
+.info-head .sub strong { color: var(--ink); font-weight: 500; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--red-soft);
+  color: var(--red);
+  width: fit-content;
+}
+.status-pill .dot {
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: breathe 1.8s var(--ease-in-out) infinite;
+}
+@keyframes breathe { 0%,100% { opacity: 0.55 } 50% { opacity: 1 } }
+
+/* AI read-out */
+.read {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 22px 24px;
+}
+.read-l {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.read-l::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: var(--ochre);
+}
+.read p {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 21px;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.read .kw {
+  background: var(--ochre-wash);
+  font-style: normal;
+  font-family: 'Geist', sans-serif;
+  font-size: 16px;
+  padding: 1px 7px 2px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  vertical-align: 2px;
+}
+.read .read-foot {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+
+/* Quick facts */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-block: 1px solid var(--hairline);
+}
+@media (max-width: 700px) { .facts { grid-template-columns: 1fr 1fr; } }
+.facts > div {
+  padding: 14px 0;
+  padding-right: 14px;
+  border-right: 1px solid var(--hairline);
+}
+.facts > div:last-child { border-right: 0; padding-right: 0; }
+.facts > div:not(:first-child) { padding-left: 14px; }
+.facts .l {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.facts .v {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.facts .v small {
+  font-family: 'Geist', sans-serif;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-left: 3px;
+}
+
+.hero-actions {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+
+/* ═════════ SECTION HEAD ═════════ */
+.sec-head {
+  display: flex; align-items: end; justify-content: space-between;
+  padding: 0 28px;
+  margin-bottom: 14px;
+  gap: 18px; flex-wrap: wrap;
+}
+.sec-head .ttl {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.005em;
+}
+.sec-head .ttl em {
+  font-style: normal;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-left: 8px;
+  vertical-align: 3px;
+}
+.sec-head .meta {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ═════════ APPROVAL TIMELINE ═════════ */
+.timeline-wrap {
+  padding: 0 28px clamp(48px, 6vw, 72px);
+}
+.timeline {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 22px 24px;
+  overflow-x: auto;
+}
+.timeline-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(110px, 1fr));
+  gap: 0;
+  min-width: 100%;
+}
+.tl-line {
+  position: absolute;
+  top: 24px;
+  left: 5%; right: 5%;
+  height: 1px;
+  background: var(--hairline);
+  z-index: 0;
+}
+.tl-line-done {
+  position: absolute;
+  top: 24px;
+  left: 5%;
+  width: 22%;       /* progress through completed steps */
+  height: 1px;
+  background: var(--green);
+  z-index: 1;
+}
+.tl-step {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+  padding: 0 4px;
+}
+.tl-mark {
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  display: grid; place-items: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin-bottom: 12px;
+  position: relative;
+  transition: transform 200ms var(--ease-out);
+}
+.tl-step.done .tl-mark {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.tl-step.now .tl-mark {
+  background: var(--ochre);
+  border-color: var(--ochre);
+  color: var(--ink);
+  box-shadow: 0 0 0 6px var(--ochre-soft);
+  animation: pulse 2.4s var(--ease-in-out) infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 6px var(--ochre-soft); }
+  50% { box-shadow: 0 0 0 10px rgba(176, 117, 39, 0.04); }
+}
+.tl-step.blocked .tl-mark {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.tl-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+.tl-step.future .tl-name { color: var(--ink-muted); font-weight: 400; }
+.tl-date {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+.tl-step.now .tl-date { color: var(--ochre-deep); font-weight: 500; }
+.tl-step.blocked .tl-date { color: var(--red); font-weight: 500; }
+
+/* ═════════ TWO-COL CARDS ═════════ */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 0 28px clamp(36px, 5vw, 56px);
+}
+@media (max-width: 880px) { .two-col { grid-template-columns: 1fr; } }
+
+.card {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.card-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 16px 22px 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.card-head h3 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1;
+  font-weight: 400;
+  color: var(--ink);
+}
+.card-head .meta {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.card-body { padding: 16px 22px; }
+
+/* Cost specifics */
+.cost-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--hairline);
+  align-items: baseline;
+}
+.cost-line:last-child { border-bottom: 0; padding-bottom: 0; }
+.cost-line .l { font-size: 13px; color: var(--ink-soft); }
+.cost-line .v {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.cost-line.total .l { font-weight: 500; color: var(--ink); }
+.cost-line.total .v {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.cost-history {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+}
+.cost-history .l {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.cost-history ul { list-style: none; }
+.cost-history li {
+  display: grid; grid-template-columns: 80px 1fr auto;
+  gap: 12px; padding: 4px 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  align-items: center;
+}
+.cost-history li .when { color: var(--ink-muted); }
+.cost-history li .what em {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink);
+}
+.cost-history li .v { color: var(--ink); font-weight: 500; }
+
+/* Spec lines */
+.spec-line {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--hairline);
+  align-items: baseline;
+}
+.spec-line:last-child { border-bottom: 0; padding-bottom: 0; }
+.spec-line .l {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.spec-line .v { font-size: 13px; color: var(--ink); }
+.spec-line .v em {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  color: var(--ochre-deep);
+  font-size: 14px;
+}
+.spec-line .pill-mini {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 7px 2px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+.pill-mini.ok    { background: var(--green-soft); color: var(--green); }
+.pill-mini.wait  { background: var(--ochre-soft); color: var(--ochre-deep); }
+.pill-mini.miss  { background: var(--red-soft); color: var(--red); }
+
+/* People */
+.people-list { display: grid; gap: 10px; }
+.person {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+.person .av {
+  width: 32px; height: 32px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600;
+  color: #fff;
+  font-family: 'Geist', sans-serif;
+}
+.person .av.brand   { background: linear-gradient(135deg, #6B7B53, #4F6F94); }
+.person .av.factory { background: linear-gradient(135deg, #C49449, #8C5A1B); }
+.person .av.agent   { background: linear-gradient(135deg, #B23A3A, #6B7B53); }
+.person .who { font-size: 13px; color: var(--ink); font-weight: 500; line-height: 1.2; }
+.person .role {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+.person .last {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  text-align: right;
+  letter-spacing: 0.04em;
+}
+.person .last strong { color: var(--ink-soft); font-weight: 500; }
+
+/* ═════════ DIGEST ═════════ */
+.digest-wrap { padding: 0 28px clamp(36px, 5vw, 56px); }
+.digest {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.digest-list { padding: 6px 0; }
+.digest-row {
+  display: grid;
+  grid-template-columns: 130px 28px 1fr auto;
+  gap: 14px;
+  align-items: start;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--hairline);
+}
+.digest-row:last-child { border-bottom: 0; }
+.digest-row .when {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-top: 4px;
+}
+.digest-row .when strong { color: var(--ink); font-weight: 500; }
+.digest-row .src {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 600;
+  color: #fff;
+  font-family: 'Geist', sans-serif;
+}
+.digest-row .src.wa { background: #25D366; }
+.digest-row .src.gmail { background: #C4392F; }
+.digest-row .src.outlook { background: #2A56A6; }
+.digest-row .src.email { background: var(--ink); }
+.digest-row .body {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink);
+  letter-spacing: -0.003em;
+}
+.digest-row .body small {
+  display: block;
+  font-family: 'Geist', sans-serif;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 4px;
+}
+.digest-row .who {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-align: right;
+  padding-top: 4px;
+}
+
+/* ═════════ ATTACHMENTS ═════════ */
+.attach-wrap { padding: 0 28px clamp(48px, 6vw, 72px); }
+.attach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.attach {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.attach:hover { border-color: var(--hairline-strong); }
+.attach .preview {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  position: relative;
+  overflow: hidden;
+}
+.attach .preview .ext {
+  position: absolute; top: 8px; left: 8px;
+  font-size: 9px;
+  background: var(--ink); color: var(--paper);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+}
+.attach .preview.img-fab { background: var(--khaki); background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.06) 0 1px, transparent 1px 4px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 4px); }
+.attach .preview.img-emb { background: var(--surface); }
+.attach .preview.img-sample { background: linear-gradient(135deg, #B5A179 0%, #8C7A55 100%); }
+.attach .name { font-size: 13px; color: var(--ink); font-weight: 500; line-height: 1.3; }
+.attach .meta {
+  display: flex; gap: 10px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ═════════ FOOT ═════════ */
+.doc-foot {
+  border-top: 1px solid var(--hairline);
+  padding: 20px 28px 32px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <a href="#" class="brand"><span class="mark">Spindle</span></a>
+
+    <nav class="side-section">
+      <span class="side-label">Inbox</span>
+      <a href="#">Today <span class="count">5</span></a>
+      <a href="#">Stale but live <span class="count">11</span></a>
+      <a href="#">Awaiting reply <span class="count">23</span></a>
+      <a href="#">All threads <span class="count">412</span></a>
+    </nav>
+
+    <nav class="side-section">
+      <span class="side-label">By workspace</span>
+      <a href="#" class="active">Styles <span class="count">247</span></a>
+      <a href="#">Brands <span class="count">19</span></a>
+      <a href="#">Factories <span class="count">7</span></a>
+      <a href="#">POs <span class="count">156</span></a>
+    </nav>
+
+    <nav class="side-section">
+      <span class="side-label">Pinned</span>
+      <a href="#">POPPI</a>
+      <a href="#">VIVA Global</a>
+      <a href="#">MARLOWE LANE · ML25</a>
+    </nav>
+
+    <div class="acct">
+      <div class="av">RK</div>
+      <div>
+        <div class="who">Rhea Khanna</div>
+        <div class="role">Senior Merch · Studio</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <div class="top">
+      <div class="crumb">
+        <span>Styles</span>
+        <span class="sep">/</span>
+        <span>POPPI</span>
+        <span class="sep">/</span>
+        <span class="here">6601234 · Jasmine Emb Jacket</span>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-ghost btn-sm">← Previous</button>
+        <button class="btn btn-ghost btn-sm">Next →</button>
+        <button class="btn btn-secondary">Share style card</button>
+        <button class="btn btn-primary">Compose update</button>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <section class="hero">
+
+      <!-- ── IMAGE COLUMN ── -->
+      <div class="img-stack">
+        <div class="flat-frame">
+          <div class="flat-corner">
+            <span>Tech pack v3 · front view</span>
+            <span>Khaki / 600u</span>
+          </div>
+
+          <!-- Technical flat sketch — embroidered jacket, front view -->
+          <svg class="flat-svg" viewBox="0 0 240 320" xmlns="http://www.w3.org/2000/svg" aria-label="Jasmine Emb Jacket — technical flat sketch, front view">
+            <!-- Left sleeve -->
+            <path class="ink-line" d="M 50 65 L 22 85 L 18 215 L 48 218 L 52 90 Z"/>
+            <!-- Cuff line left -->
+            <path class="ink-thin" d="M 18 200 L 48 203"/>
+            <!-- Right sleeve -->
+            <path class="ink-line" d="M 190 65 L 218 85 L 222 215 L 192 218 L 188 90 Z"/>
+            <!-- Cuff line right -->
+            <path class="ink-thin" d="M 222 200 L 192 203"/>
+            <!-- Body silhouette -->
+            <path class="ink-line" d="
+              M 50 65
+              L 95 50
+              Q 120 46 145 50
+              L 190 65
+              L 196 285
+              L 44 285
+              Z
+            "/>
+            <!-- Collar -->
+            <path class="ink-line" d="M 95 50 Q 120 64 145 50 L 142 70 Q 120 80 98 70 Z"/>
+            <!-- Collar inner -->
+            <path class="ink-thin" d="M 105 60 Q 120 70 135 60"/>
+            <!-- Center front opening line -->
+            <path class="ink-line" d="M 120 70 L 120 285"/>
+            <!-- Tie 1 (chest left) -->
+            <path class="ink-thin" d="M 95 110 L 118 113"/>
+            <!-- Tie 1 (chest right, mirror) -->
+            <path class="ink-thin" d="M 122 113 L 145 110"/>
+            <!-- Tie 2 (mid left) -->
+            <path class="ink-thin" d="M 92 155 L 118 158"/>
+            <!-- Tie 2 (mid right) -->
+            <path class="ink-thin" d="M 122 158 L 148 155"/>
+            <!-- Tie 3 (waist left) -->
+            <path class="ink-thin" d="M 92 200 L 118 203"/>
+            <!-- Tie 3 (waist right) -->
+            <path class="ink-thin" d="M 122 203 L 148 200"/>
+            <!-- Patch pocket left -->
+            <rect class="ink-thin" x="60" y="225" width="48" height="40" rx="2"/>
+            <!-- Patch pocket right -->
+            <rect class="ink-thin" x="132" y="225" width="48" height="40" rx="2"/>
+            <!-- Pocket inner top stitch left -->
+            <path class="ink-dash" d="M 60 232 L 108 232"/>
+            <!-- Pocket inner top stitch right -->
+            <path class="ink-dash" d="M 132 232 L 180 232"/>
+            <!-- Hem topstitch -->
+            <path class="ink-dash" d="M 44 280 L 196 280"/>
+
+            <!-- ── EMBROIDERY DETAILS (chest area, ochre) ── -->
+            <!-- Cluster left chest: small floral motif -->
+            <g transform="translate(78, 95)">
+              <!-- center -->
+              <circle class="embr" cx="0" cy="0" r="1.6"/>
+              <!-- 6 petals around -->
+              <circle class="embr" cx="5" cy="0" r="1.2"/>
+              <circle class="embr" cx="-5" cy="0" r="1.2"/>
+              <circle class="embr" cx="2.5" cy="-4.3" r="1.2"/>
+              <circle class="embr" cx="-2.5" cy="-4.3" r="1.2"/>
+              <circle class="embr" cx="2.5" cy="4.3" r="1.2"/>
+              <circle class="embr" cx="-2.5" cy="4.3" r="1.2"/>
+              <!-- stem leaves -->
+              <path class="embr-line" d="M 0 6 L 0 14"/>
+              <path class="embr-line" d="M 0 10 Q -3 11 -5 9"/>
+              <path class="embr-line" d="M 0 12 Q 3 13 5 11"/>
+            </g>
+
+            <!-- Cluster right chest: smaller, mirror-ish -->
+            <g transform="translate(165, 92)">
+              <circle class="embr" cx="0" cy="0" r="1.4"/>
+              <circle class="embr" cx="4" cy="0" r="1"/>
+              <circle class="embr" cx="-4" cy="0" r="1"/>
+              <circle class="embr" cx="2" cy="-3.5" r="1"/>
+              <circle class="embr" cx="-2" cy="-3.5" r="1"/>
+              <circle class="embr" cx="2" cy="3.5" r="1"/>
+              <circle class="embr" cx="-2" cy="3.5" r="1"/>
+              <path class="embr-line" d="M 0 5 L 0 11"/>
+              <path class="embr-line" d="M 0 8 Q 3 9 5 7"/>
+            </g>
+
+            <!-- Small scattered detail dots above pocket left -->
+            <circle class="embr" cx="72" cy="170" r="0.8"/>
+            <circle class="embr" cx="80" cy="175" r="0.8"/>
+            <circle class="embr" cx="88" cy="172" r="0.8"/>
+            <circle class="embr" cx="96" cy="178" r="0.8"/>
+
+            <!-- Small scattered detail dots above pocket right -->
+            <circle class="embr" cx="146" cy="170" r="0.8"/>
+            <circle class="embr" cx="154" cy="175" r="0.8"/>
+            <circle class="embr" cx="162" cy="172" r="0.8"/>
+            <circle class="embr" cx="170" cy="178" r="0.8"/>
+
+            <!-- Spec annotations (very subtle) -->
+            <g style="font-family: 'JetBrains Mono', monospace; font-size: 7px; fill: #8A8270;">
+              <text x="6" y="148">L · 64cm</text>
+              <text x="6" y="158">SL · 56</text>
+            </g>
+          </svg>
+
+          <div class="flat-foot">
+            <div>
+              <div class="ttl">Front view</div>
+              <div class="src" style="margin-top: 4px;">From: tech_pack_v3.pdf · 12 Dec</div>
+            </div>
+            <a href="#">View back &amp; details →</a>
+          </div>
+        </div>
+
+        <!-- THUMBNAILS STRIP: fabric / lab dip / embroidery sample -->
+        <div class="thumbs">
+          <div class="thumb">
+            <div class="swatch fabric"></div>
+            <div>
+              <div class="lbl">Fabric · approved</div>
+              <div class="v">Cotton Duck — Khaki</div>
+            </div>
+          </div>
+          <div class="thumb">
+            <div class="swatch lab"></div>
+            <div>
+              <div class="lbl">Lab dip · v2</div>
+              <div class="v">Awaiting brand sign-off</div>
+            </div>
+          </div>
+          <div class="thumb">
+            <div class="swatch embr">
+              <svg viewBox="0 0 60 60">
+                <g transform="translate(30, 30)">
+                  <circle class="embr-detail" cx="0" cy="0" r="2.5"/>
+                  <circle class="embr-detail" cx="9" cy="0" r="2"/>
+                  <circle class="embr-detail" cx="-9" cy="0" r="2"/>
+                  <circle class="embr-detail" cx="4.5" cy="-7.8" r="2"/>
+                  <circle class="embr-detail" cx="-4.5" cy="-7.8" r="2"/>
+                  <circle class="embr-detail" cx="4.5" cy="7.8" r="2"/>
+                  <circle class="embr-detail" cx="-4.5" cy="7.8" r="2"/>
+                  <path class="embr-line" d="M 0 11 L 0 22"/>
+                  <path class="embr-line" d="M 0 16 Q -5 18 -8 14"/>
+                  <path class="embr-line" d="M 0 19 Q 5 21 8 17"/>
+                </g>
+              </svg>
+            </div>
+            <div>
+              <div class="lbl">Embroidery</div>
+              <div class="v">Hand-done floral — contractor TBC</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── INFO COLUMN ── -->
+      <div class="info-col">
+
+        <header class="info-head">
+          <div class="style-no">Style 6601234 · POPPI · AW25</div>
+          <h1>Jasmine Emb Jacket</h1>
+          <div class="sub">
+            <span><strong>Khaki</strong> · 600 units</span>
+            <span>Cotton Duck · embroidered</span>
+            <span>FOB SEA · Tirupur</span>
+          </div>
+          <span class="status-pill"><span class="dot"></span>Blocked · lab dip pending</span>
+        </header>
+
+        <div class="read">
+          <div class="read-l">Spindle's read of this style</div>
+          <p>
+            Lab dip is the only thing standing between this style and cutting. Brand has been silent <span class="kw">8 days</span>; fabric arrives <span class="kw">28 Jan</span> per Vikram. If lab dip isn't approved by <span class="kw">tomorrow</span>, the cutting window closes and delivery slips past <span class="kw">15 Feb</span>.
+          </p>
+          <div class="read-foot">
+            <span>Built from 14 emails · 3 PDFs · 2 images</span>
+            <span>Last update · 14:32 yesterday</span>
+            <span>Confidence · 94%</span>
+          </div>
+        </div>
+
+        <div class="facts">
+          <div>
+            <div class="l">Quantity</div>
+            <div class="v">600</div>
+          </div>
+          <div>
+            <div class="l">Value</div>
+            <div class="v">£8,100</div>
+          </div>
+          <div>
+            <div class="l">Delivery</div>
+            <div class="v">15 Feb <small>· slipping</small></div>
+          </div>
+          <div>
+            <div class="l">Days to delivery</div>
+            <div class="v">38</div>
+          </div>
+        </div>
+
+        <div class="hero-actions">
+          <button class="btn btn-accent">Chase brand on lab dip
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h6M6 3l3 3-3 3"/></svg>
+          </button>
+          <button class="btn btn-secondary">Open thread (14)</button>
+          <button class="btn btn-ghost">Send an update to Spindle</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ APPROVAL TIMELINE ═══════════ -->
+    <div class="sec-head">
+      <span class="ttl">Approval timeline <em>9 stages · 3 done · 1 in progress · 1 blocked</em></span>
+      <span class="meta">Inferred from supplier email + PDFs</span>
+    </div>
+
+    <div class="timeline-wrap">
+      <div class="timeline">
+        <div class="timeline-track">
+          <div class="tl-line"></div>
+          <div class="tl-line-done" style="width: 24%;"></div>
+
+          <div class="tl-step done">
+            <div class="tl-mark">✓</div>
+            <div class="tl-name">Tech pack</div>
+            <div class="tl-date">2 Dec · v3</div>
+          </div>
+          <div class="tl-step done">
+            <div class="tl-mark">✓</div>
+            <div class="tl-name">Initial costing</div>
+            <div class="tl-date">2 Dec · $13.50</div>
+          </div>
+          <div class="tl-step done">
+            <div class="tl-mark">✓</div>
+            <div class="tl-name">Lab dip submitted</div>
+            <div class="tl-date">18 Dec</div>
+          </div>
+          <div class="tl-step blocked">
+            <div class="tl-mark">!</div>
+            <div class="tl-name">Lab dip approval</div>
+            <div class="tl-date">8 days quiet</div>
+          </div>
+          <div class="tl-step future">
+            <div class="tl-mark">·</div>
+            <div class="tl-name">Strike-off</div>
+            <div class="tl-date">—</div>
+          </div>
+          <div class="tl-step future">
+            <div class="tl-mark">·</div>
+            <div class="tl-name">Fit sample</div>
+            <div class="tl-date">—</div>
+          </div>
+          <div class="tl-step future">
+            <div class="tl-mark">·</div>
+            <div class="tl-name">PP sample</div>
+            <div class="tl-date">—</div>
+          </div>
+          <div class="tl-step future">
+            <div class="tl-mark">·</div>
+            <div class="tl-name">Bulk &amp; TOP</div>
+            <div class="tl-date">—</div>
+          </div>
+          <div class="tl-step future">
+            <div class="tl-mark">·</div>
+            <div class="tl-name">BL · ship</div>
+            <div class="tl-date">target 15 Feb</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ COST + FABRIC/TRIM ═══════════ -->
+    <div class="two-col">
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Cost</h3>
+          <span class="meta">Source · Halverra Mills · 2 Dec</span>
+        </div>
+        <div class="card-body">
+          <div class="cost-line">
+            <span class="l">FOB · per unit</span>
+            <span class="v">$13.50 USD</span>
+          </div>
+          <div class="cost-line">
+            <span class="l">Mode</span>
+            <span class="v">FOB SEA · Tirupur → Felixstowe</span>
+          </div>
+          <div class="cost-line">
+            <span class="l">FX rate locked</span>
+            <span class="v">USD → GBP · 0.79</span>
+          </div>
+          <div class="cost-line">
+            <span class="l">Quantity</span>
+            <span class="v">600 units</span>
+          </div>
+          <div class="cost-line total">
+            <span class="l">Order value</span>
+            <span class="v">£8,100</span>
+          </div>
+
+          <div class="cost-history">
+            <div class="l">History</div>
+            <ul>
+              <li><span class="when">2 Dec</span><span class="what"><em>Initial cost sheet</em></span><span class="v">$13.50</span></li>
+              <li><span class="when">no change</span><span class="what">—</span><span class="v">stable</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Fabric &amp; trim</h3>
+          <span class="meta">v3 spec · embroidery TBD</span>
+        </div>
+        <div class="card-body">
+          <div class="spec-line">
+            <span class="l">Body fabric</span>
+            <span class="v">Cotton Duck · 280gsm · 100% cotton <span class="pill-mini ok">approved</span></span>
+          </div>
+          <div class="spec-line">
+            <span class="l">Mill</span>
+            <span class="v"><em>tbc</em> — Spindle hasn't seen confirmed mill name yet</span>
+          </div>
+          <div class="spec-line">
+            <span class="l">Colour</span>
+            <span class="v">Khaki <span class="pill-mini wait">lab dip v2 pending</span></span>
+          </div>
+          <div class="spec-line">
+            <span class="l">Embroidery</span>
+            <span class="v">Hand-done floral cluster · chest panels &amp; pocket detail <span class="pill-mini miss">contractor not assigned</span></span>
+          </div>
+          <div class="spec-line">
+            <span class="l">Lining</span>
+            <span class="v">Unlined</span>
+          </div>
+          <div class="spec-line">
+            <span class="l">Trim</span>
+            <span class="v">Self-fabric ties × 6 · matching tonal</span>
+          </div>
+          <div class="spec-line">
+            <span class="l">Care label</span>
+            <span class="v"><em>tbc</em></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ PEOPLE + CONVERSATION ═══════════ -->
+    <div class="two-col">
+
+      <div class="card">
+        <div class="card-head">
+          <h3>People &amp; parties</h3>
+          <span class="meta">3 contacts · last 30 days</span>
+        </div>
+        <div class="card-body">
+          <div class="people-list">
+            <div class="person">
+              <div class="av brand">IH</div>
+              <div>
+                <div class="who">Iris Halloran</div>
+                <div class="role">Brand · POPPI</div>
+              </div>
+              <div class="last"><strong>quiet 8d</strong><br>last: 31 Dec</div>
+            </div>
+            <div class="person">
+              <div class="av factory">AT</div>
+              <div>
+                <div class="who">Halverra Mills · costing &amp; PO</div>
+                <div class="role">Factory · sales@halverra.in</div>
+              </div>
+              <div class="last"><strong>active</strong><br>last: 6 Jan</div>
+            </div>
+            <div class="person">
+              <div class="av agent">RK</div>
+              <div>
+                <div class="who">Vikram Sethi</div>
+                <div class="role">Sampling agent · Tirupur</div>
+              </div>
+              <div class="last"><strong>active</strong><br>last: 14:32 yest.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Open questions</h3>
+          <span class="meta">Spindle inferred · 4 open</span>
+        </div>
+        <div class="card-body">
+          <div class="spec-line">
+            <span class="l">→ brand</span>
+            <span class="v">Approve <em>lab dip v2</em> for khaki cotton duck (submitted 18 Dec)</span>
+          </div>
+          <div class="spec-line">
+            <span class="l">→ brand</span>
+            <span class="v">Confirm whether to push delivery to <em>15 Feb</em> per Vikram</span>
+          </div>
+          <div class="spec-line">
+            <span class="l">→ factory</span>
+            <span class="v">Assign embroidery contractor (3 weeks of lead time min.)</span>
+          </div>
+          <div class="spec-line">
+            <span class="l">→ internal</span>
+            <span class="v">Mill name needs to land on the spec for traceability</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ DIGEST ═══════════ -->
+    <div class="sec-head">
+      <span class="ttl">Conversation digest <em>14 messages · 38 days · summarised</em></span>
+      <span class="meta">Tap any line to open the original</span>
+    </div>
+
+    <div class="digest-wrap">
+      <div class="digest">
+        <div class="digest-list">
+
+          <div class="digest-row">
+            <span class="when">Yesterday<br><strong>14:32</strong></span>
+            <span class="src wa">W</span>
+            <div class="body">
+              Fabric for 6601234 will reach factory only by <strong>28 Jan</strong>; need to push delivery to mid Feb. Will share new sample dispatch date by tomorrow.
+              <small>Voice note 0:38 · transcribed</small>
+            </div>
+            <span class="who">Vikram<br>WhatsApp</span>
+          </div>
+
+          <div class="digest-row">
+            <span class="when">3 Jan<br><strong>11:22</strong></span>
+            <span class="src gmail">G</span>
+            <div class="body">
+              Confirms PO 510037 in writing. Final quantities locked: 600 khaki + 600 ivory variant under same PO. Awaits lab dip v2 sign-off from brand.
+              <small>"PO 510037 — final commercial confirmation"</small>
+            </div>
+            <span class="who">Halverra Mills<br>Gmail</span>
+          </div>
+
+          <div class="digest-row">
+            <span class="when">31 Dec<br><strong>16:08</strong></span>
+            <span class="src outlook">O</span>
+            <div class="body">
+              Brand silent since this date. Last message from Iris was a generic Christmas wrap-up; no specific note on lab dip status.
+              <small>"Out of office until 6 Jan — back to all approvals on return"</small>
+            </div>
+            <span class="who">Iris Halloran<br>Outlook</span>
+          </div>
+
+          <div class="digest-row">
+            <span class="when">19 Dec<br><strong>09:14</strong></span>
+            <span class="src wa">W</span>
+            <div class="body">
+              Lab dip v2 dispatched to brand via DHL after v1 was rejected for being too yellow. New mix is 2% deeper olive base.
+              <small>Photo attached · DHL tracking #</small>
+            </div>
+            <span class="who">Vikram<br>WhatsApp</span>
+          </div>
+
+          <div class="digest-row">
+            <span class="when">12 Dec<br><strong>17:48</strong></span>
+            <span class="src gmail">G</span>
+            <div class="body">
+              Tech pack v3 finalised. Two changes from v2: tie placement moved 2cm inward, embroidery pocket panel added at left chest.
+              <small>tech_pack_v3.pdf · 4.2MB · 12 pages</small>
+            </div>
+            <span class="who">Iris Halloran<br>Gmail</span>
+          </div>
+
+          <div class="digest-row">
+            <span class="when">2 Dec<br><strong>10:31</strong></span>
+            <span class="src email">E</span>
+            <div class="body">
+              Initial cost sheet at $13.50 FOB. Flagged: assumes hand-done embroidery; if machine, can come down by ~$1.20.
+              <small>cost_sheet_6601234_v1.pdf · attached</small>
+            </div>
+            <span class="who">Halverra Mills<br>Email</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ ATTACHMENTS ═══════════ -->
+    <div class="sec-head">
+      <span class="ttl">Files <em>8 attachments · auto-read by Spindle</em></span>
+      <span class="meta">Auto-classified · click to preview</span>
+    </div>
+
+    <div class="attach-wrap">
+      <div class="attach-grid">
+
+        <div class="attach">
+          <div class="preview">
+            <span class="ext">PDF</span>
+            tech pack
+          </div>
+          <div>
+            <div class="name">tech_pack_v3.pdf</div>
+            <div class="meta"><span>4.2 MB</span><span>12 Dec</span></div>
+          </div>
+        </div>
+
+        <div class="attach">
+          <div class="preview">
+            <span class="ext">PDF</span>
+            cost sheet
+          </div>
+          <div>
+            <div class="name">cost_sheet_6601234_v1.pdf</div>
+            <div class="meta"><span>184 KB</span><span>2 Dec</span></div>
+          </div>
+        </div>
+
+        <div class="attach">
+          <div class="preview img-fab">
+            <span class="ext">JPG</span>
+          </div>
+          <div>
+            <div class="name">cotton_duck_swatch.jpg</div>
+            <div class="meta"><span>2.1 MB</span><span>12 Dec</span></div>
+          </div>
+        </div>
+
+        <div class="attach">
+          <div class="preview img-sample">
+            <span class="ext">JPG</span>
+          </div>
+          <div>
+            <div class="name">lab_dip_v2_dispatch.jpg</div>
+            <div class="meta"><span>3.4 MB</span><span>19 Dec</span></div>
+          </div>
+        </div>
+
+        <div class="attach">
+          <div class="preview img-emb">
+            <span class="ext">PNG</span>
+            embr.
+          </div>
+          <div>
+            <div class="name">embroidery_motif_ref.png</div>
+            <div class="meta"><span>1.6 MB</span><span>12 Dec</span></div>
+          </div>
+        </div>
+
+        <div class="attach">
+          <div class="preview">
+            <span class="ext">PDF</span>
+            BOM
+          </div>
+          <div>
+            <div class="name">bom_6601234_v2.pdf</div>
+            <div class="meta"><span>96 KB</span><span>5 Dec</span></div>
+          </div>
+        </div>
+
+        <div class="attach">
+          <div class="preview">
+            <span class="ext">XLSX</span>
+            measurements
+          </div>
+          <div>
+            <div class="name">size_spec_jasmine.xlsx</div>
+            <div class="meta"><span>22 KB</span><span>10 Dec</span></div>
+          </div>
+        </div>
+
+        <div class="attach">
+          <div class="preview">
+            <span class="ext">JPG</span>
+            wa screenshot
+          </div>
+          <div>
+            <div class="name">rajeev_whatsapp_28jan.jpg</div>
+            <div class="meta"><span>0.8 MB</span><span>yest.</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <footer class="doc-foot">
+      <span>Spindle · style card · v0.14</span>
+      <span>Style 6601234 · POPPI</span>
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>

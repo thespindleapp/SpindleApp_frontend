@@ -1,0 +1,1362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spindle — MVP screen sheet (for Figma import)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --paper:          #F4EFE5;
+  --paper-deep:     #ECE5D6;
+  --surface:        #FBF8F0;
+  --surface-2:      #F8F4EA;
+  --ink:            #14110C;
+  --ink-soft:       #595142;
+  --ink-muted:      #8A8270;
+  --ink-faint:      #B6AC93;
+  --hairline:       #DDD3C0;
+  --hairline-strong:#C9BFA8;
+  --ochre:          #B07527;
+  --ochre-deep:     #8C5A1B;
+  --ochre-wash:     rgba(232, 198, 121, 0.55);
+  --ochre-soft:     rgba(176, 117, 39, 0.10);
+  --green-acc:      #5C8A4A;
+  --green-soft:     rgba(92, 138, 74, 0.10);
+  --red-acc:        #B23A3A;
+  --red-soft:       rgba(178, 58, 58, 0.10);
+  --blue-acc:       #4F6F94;
+
+  --canvas:         #E9E7E1;
+  --canvas-dot:     #D2CFC6;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--canvas);
+  background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+  font-family: 'Geist', -apple-system, system-ui, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ════════ SHEET HEADER ════════ */
+.sheet-head {
+  padding: 48px 64px 8px;
+}
+.sheet-head h1 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 34px;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+.sheet-head h1 em { color: var(--ochre-deep); }
+.sheet-head .sub {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin-top: 6px;
+  max-width: 72ch;
+  line-height: 1.5;
+}
+.sheet-head .sub code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* Token legend */
+.tokens {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 20px 64px 8px;
+}
+.tok {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+}
+.tok .sw {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(20,17,12,0.12);
+}
+.tok.type { font-size: 11px; }
+.tok.type .face { font-size: 14px; color: var(--ink); letter-spacing: 0; }
+.tok.type .face.serif { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; }
+.tok.type .face.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+/* ════════ CANVAS LAYOUT ════════ */
+.canvas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 72px;
+  padding: 48px 64px 96px;
+  align-items: flex-start;
+}
+.artboard { flex-shrink: 0; }
+.ab-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ab-label .dims { color: var(--ink-faint); }
+.frame {
+  border: 1px solid var(--hairline-strong);
+  box-shadow: 0 12px 48px -16px rgba(20,17,12,0.22), 0 2px 8px rgba(20,17,12,0.06);
+  overflow: hidden;
+  position: relative;
+}
+
+/* shared paper grain for paper surfaces */
+.grain::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: 0.32;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.078  0 0 0 0 0.067  0 0 0 0 0.047  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+.grain > * { position: relative; z-index: 1; }
+
+/* Spindle wordmark */
+.mark {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1;
+  display: inline-block;
+}
+.mark::after {
+  content: '';
+  display: inline-block;
+  width: 0.18em; height: 0.18em;
+  margin-left: 0.06em;
+  border-radius: 999px;
+  background: var(--ochre);
+  transform: translateY(-0.08em);
+}
+
+/* shared small bits */
+.mono-l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 160ms;
+  width: 100%;
+}
+.btn.primary {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 11px 16px;
+}
+.btn.primary:hover { background: #28221A; }
+.btn.secondary {
+  background: white;
+  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
+  padding: 10px 16px;
+}
+.btn.secondary:hover { background: var(--surface-2); }
+.btn.ghost-red {
+  background: transparent;
+  color: var(--red-acc);
+  border: 1px solid rgba(178,58,58,0.35);
+  padding: 8px 14px;
+  font-size: 12px;
+  width: auto;
+}
+.btn.ghost-red:hover { background: var(--red-soft); }
+.btn svg { width: 14px; height: 14px; }
+
+/* toggle switch */
+.toggle {
+  width: 36px; height: 21px;
+  background: var(--hairline-strong);
+  border-radius: 999px;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 160ms;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2.5px; left: 2.5px;
+  width: 16px; height: 16px;
+  background: white;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(20,17,12,0.25);
+  transition: left 160ms;
+}
+.toggle.on { background: var(--green-acc); }
+.toggle.on::after { left: 17.5px; }
+
+/* status dot */
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 999px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.dot.green { background: var(--green-acc); }
+.dot.amber { background: var(--ochre); }
+
+/* chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: white;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--ink);
+}
+.chip .x {
+  width: 14px; height: 14px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-muted);
+  font-size: 9px;
+  cursor: pointer;
+}
+.chip .x:hover { background: var(--paper-deep); color: var(--ink); }
+.chip.mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.chip.add {
+  border-style: dashed;
+  color: var(--ink-muted);
+  background: transparent;
+  cursor: pointer;
+}
+.chip.add:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+/* ═══════════════════════════════════════════════════════════
+   SCREEN 1 — EXTENSION POPUP (connected state) · 360×560
+   ═══════════════════════════════════════════════════════════ */
+.s-popup {
+  width: 360px; height: 560px;
+  background: var(--paper);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+.s-popup .head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.s-popup .head .mark { font-size: 24px; }
+.s-popup .head .tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-top: 5px;
+}
+.s-popup .head .gear {
+  margin-left: auto;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 7px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.s-popup .head .gear:hover { background: var(--paper-deep); }
+.s-popup .head .gear svg { width: 15px; height: 15px; }
+
+.s-popup .conn {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+  display: grid;
+  gap: 8px;
+}
+.s-popup .conn .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.s-popup .conn .row .email {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+}
+.s-popup .conn .scope {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.s-popup .conn .scope .edit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ochre-deep);
+  cursor: pointer;
+}
+.s-popup .conn .scope .edit:hover { color: var(--ochre); }
+
+.s-popup .today {
+  padding: 18px;
+  border-bottom: 1px solid var(--hairline);
+  flex: 1;
+}
+.s-popup .today .l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ochre-deep);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.s-popup .today .l::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: var(--green-acc);
+}
+.s-popup .today .big {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.s-popup .today .big .n {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 52px;
+  line-height: 0.9;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.s-popup .today .big .t {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.3;
+  padding-bottom: 4px;
+}
+.s-popup .today .peek {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--red-acc);
+  border-radius: 8px;
+  padding: 11px 13px;
+}
+.s-popup .today .peek .why {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.s-popup .today .peek .why .kw {
+  background: var(--ochre-wash);
+  font-style: normal;
+  font-family: 'Geist', sans-serif;
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+.s-popup .today .peek .meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.s-popup .today .peek .meta strong { color: var(--ink); font-weight: 500; }
+.s-popup .actions {
+  padding: 14px 18px 8px;
+  display: grid;
+  gap: 7px;
+}
+.s-popup .pause {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.s-popup .foot {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 18px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.s-popup .foot a { color: var(--ochre-deep); text-decoration: none; }
+
+/* ═══════════════════════════════════════════════════════════
+   SCREENS 2–4 — ONBOARDING · 480×640
+   ═══════════════════════════════════════════════════════════ */
+.s-onb {
+  width: 480px; height: 640px;
+  background: var(--paper);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 36px 40px 32px;
+}
+.s-onb .steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 36px;
+}
+.s-onb .steps .s-dot {
+  width: 28px; height: 4px;
+  border-radius: 999px;
+  background: var(--hairline);
+}
+.s-onb .steps .s-dot.done { background: var(--green-acc); }
+.s-onb .steps .s-dot.now { background: var(--ochre); }
+.s-onb .steps .s-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-left: auto;
+}
+.s-onb .o-mark { font-size: 30px; margin-bottom: 22px; }
+.s-onb h2 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.05;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.s-onb h2 em { color: var(--ochre-deep); }
+.s-onb .lede {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin-bottom: 26px;
+}
+.s-onb .body { flex: 1; }
+.s-onb .o-foot {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.s-onb .o-foot .back {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.s-onb .o-foot .back:hover { color: var(--ink); background: var(--paper-deep); }
+.s-onb .o-foot .btn { flex: 1; }
+.s-onb .micro {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-align: center;
+  margin-top: 14px;
+}
+
+/* google button */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 160ms, box-shadow 160ms;
+}
+.btn-google:hover { background: #FFFEFB; box-shadow: 0 2px 8px rgba(20,17,12,0.08); }
+.btn-google svg { width: 18px; height: 18px; }
+
+/* reassurance list */
+.assure { display: grid; gap: 12px; margin-top: 28px; }
+.assure .a-row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  align-items: start;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+.assure .a-row strong { color: var(--ink); font-weight: 500; }
+.assure .a-row .ic {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  color: var(--green-acc);
+}
+.assure .a-row .ic svg { width: 13px; height: 13px; }
+
+/* scope option cards */
+.opt {
+  border: 1px solid var(--hairline-strong);
+  border-radius: 10px;
+  background: white;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 160ms, background 160ms;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.opt:hover { border-color: var(--ink-faint); }
+.opt.selected {
+  border-color: var(--ochre);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--ochre-soft);
+}
+.opt .radio {
+  width: 16px; height: 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--hairline-strong);
+  margin-top: 2px;
+  position: relative;
+}
+.opt.selected .radio { border-color: var(--ochre); }
+.opt.selected .radio::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  background: var(--ochre);
+  border-radius: 999px;
+}
+.opt .o-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+.opt .o-sub {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+.opt .o-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+.opt .privacy-note {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--hairline);
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* first-scan progress list */
+.scan { display: grid; gap: 0; margin-top: 8px; }
+.scan .sc-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 2px;
+  border-bottom: 1px dashed var(--hairline);
+  font-size: 13px;
+  color: var(--ink);
+}
+.scan .sc-row:last-child { border-bottom: 0; }
+.scan .sc-row.pending { color: var(--ink-muted); }
+.scan .ic {
+  width: 20px; height: 20px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+}
+.scan .ic.done { background: var(--green-soft); color: var(--green-acc); }
+.scan .ic.live { background: var(--ochre-soft); color: var(--ochre-deep); }
+.scan .ic.wait { background: var(--surface-2); color: var(--ink-faint); }
+.scan .ic svg { width: 11px; height: 11px; }
+.scan .ic .spin {
+  width: 10px; height: 10px;
+  border: 1.5px solid var(--ochre);
+  border-top-color: transparent;
+  border-radius: 999px;
+  animation: rot 0.9s linear infinite;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+.scan .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCREEN 5 — SETTINGS · 720×880
+   ═══════════════════════════════════════════════════════════ */
+.s-settings {
+  width: 720px; height: 880px;
+  background: var(--paper);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+}
+.s-settings .head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 32px 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+.s-settings .head .mark { font-size: 24px; }
+.s-settings .head h2 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 24px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.s-settings .head .close {
+  margin-left: auto;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.s-settings .head .close:hover { background: var(--paper-deep); }
+.s-settings .head .close svg { width: 14px; height: 14px; }
+.s-settings .scroll { flex: 1; overflow-y: auto; padding: 8px 0 16px; }
+
+.set-sec { padding: 20px 32px; border-bottom: 1px solid var(--hairline); }
+.set-sec:last-child { border-bottom: 0; }
+.set-sec .sec-l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ochre-deep);
+  margin-bottom: 14px;
+}
+.set-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 9px 0;
+}
+.set-row .r-main { min-width: 0; }
+.set-row .r-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.set-row .r-sub {
+  font-size: 12px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+.set-row .r-sub code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.pill.green { background: var(--green-soft); color: var(--green-acc); }
+.pill.ochre { background: var(--ochre-soft); color: var(--ochre-deep); }
+.link-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ochre-deep);
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.link-btn:hover { color: var(--ochre); }
+.select-mock {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: white;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.select-mock svg { width: 10px; height: 10px; color: var(--ink-muted); }
+.scope-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+.danger-zone {
+  margin: 12px 32px 24px;
+  border: 1px dashed rgba(178,58,58,0.4);
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: rgba(178,58,58,0.03);
+}
+.danger-zone .dz-l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--red-acc);
+  margin-bottom: 12px;
+}
+.danger-zone .set-row { padding: 7px 0; }
+
+/* ═══════════════════════════════════════════════════════════
+   SCREEN 6 — DAILY DIGEST EMAIL · 600×940
+   ═══════════════════════════════════════════════════════════ */
+.s-digest {
+  width: 600px; height: 940px;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+}
+.s-digest .client-bar {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--hairline);
+  padding: 14px 28px;
+}
+.s-digest .client-bar .from {
+  font-size: 12.5px;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+.s-digest .client-bar .from strong { font-weight: 600; }
+.s-digest .client-bar .from .addr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.s-digest .client-bar .subj {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.s-digest .body { flex: 1; overflow-y: auto; }
+.s-digest .d-head {
+  background: var(--paper);
+  padding: 30px 36px 26px;
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+}
+.s-digest .d-head .mark { font-size: 26px; margin-bottom: 16px; }
+.s-digest .d-head .date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+.s-digest .d-head h2 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+.s-digest .d-head h2 em { color: var(--ochre-deep); }
+.d-item {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 16px;
+  padding: 20px 36px;
+  border-bottom: 1px solid var(--hairline);
+}
+.d-item .num {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 26px;
+  color: var(--ochre-deep);
+  line-height: 1;
+}
+.d-item .why {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.d-item .why .kw {
+  background: var(--ochre-wash);
+  font-style: normal;
+  font-family: 'Geist', sans-serif;
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: 500;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.d-item .meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.d-item .meta .ref {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.d-item .meta .ref strong { color: var(--ink); font-weight: 500; }
+.d-item .meta .open {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ochre-deep);
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.s-digest .d-foot {
+  padding: 22px 36px 26px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--hairline);
+}
+.s-digest .d-foot .line {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.s-digest .d-foot .links {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  display: flex;
+  gap: 16px;
+}
+.s-digest .d-foot .links a { color: var(--ochre-deep); text-decoration: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════ SHEET HEADER ════════ -->
+<div class="sheet-head">
+  <h1>Spindle — <em>MVP screen sheet</em></h1>
+  <p class="sub">
+    The six app screens not covered by the existing mockups, at fixed artboard sizes, ready for Figma import via the <code>html.to.design</code> plugin. The big surfaces (Gmail sidebar, style card, Today, board) live in their own mockup files — import those separately.
+  </p>
+</div>
+
+<div class="tokens">
+  <span class="tok"><span class="sw" style="background:#F4EFE5"></span>paper #F4EFE5</span>
+  <span class="tok"><span class="sw" style="background:#14110C"></span>ink #14110C</span>
+  <span class="tok"><span class="sw" style="background:#B07527"></span>ochre #B07527</span>
+  <span class="tok"><span class="sw" style="background:#DDD3C0"></span>hairline #DDD3C0</span>
+  <span class="tok"><span class="sw" style="background:#5C8A4A"></span>green #5C8A4A</span>
+  <span class="tok"><span class="sw" style="background:#B23A3A"></span>red #B23A3A</span>
+  <span class="tok type"><span class="face serif">Instrument Serif</span> editorial</span>
+  <span class="tok type"><span class="face">Geist</span> ui</span>
+  <span class="tok type"><span class="face mono">JetBrains Mono</span> data</span>
+</div>
+
+<div class="canvas">
+
+  <!-- ═══════════ SCREEN 1 · EXTENSION POPUP ═══════════ -->
+  <div class="artboard">
+    <div class="ab-label"><span>01 · extension popup — connected</span><span class="dims">360 × 560</span></div>
+    <div class="frame s-popup grain">
+
+      <div class="head">
+        <span class="mark">Spindle</span>
+        <span class="tag">extension</span>
+        <button class="gear" aria-label="Settings">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v2.5M8 12.5V15M1 8h2.5M12.5 8H15M3 3l1.8 1.8M11.2 11.2 13 13M3 13l1.8-1.8M11.2 4.8 13 3"/></svg>
+        </button>
+      </div>
+
+      <div class="conn">
+        <div class="row">
+          <span class="dot green"></span>
+          <span>Connected ·</span>
+          <span class="email">rhea@halverra.in</span>
+        </div>
+        <div class="scope">
+          <span>Watching: <strong style="color: var(--ink); font-weight:500;">Suppliers</strong> label + 14 senders</span>
+          <span class="edit">Edit scope</span>
+        </div>
+      </div>
+
+      <div class="today">
+        <div class="l">Today · re-ranked 09:00</div>
+        <div class="big">
+          <span class="n">5</span>
+          <span class="t">things need you<br>this morning</span>
+        </div>
+        <div class="peek">
+          <div class="why">
+            Lab dip <span class="kw">8 days overdue</span> on Jasmine Emb Jacket — cutting window closes <span class="kw">tomorrow</span>.
+          </div>
+          <div class="meta"><strong>6601234</strong> · POPPI · blocked</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary">
+          Open Today
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </button>
+        <button class="btn secondary">Production board</button>
+      </div>
+
+      <div class="pause">
+        <span>Pause Spindle</span>
+        <span class="toggle"></span>
+      </div>
+
+      <div class="foot">
+        <span>v0.1 · gmail</span>
+        <span><a href="#">help</a> · <a href="#">privacy</a></span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ SCREEN 2 · ONBOARDING — CONNECT ═══════════ -->
+  <div class="artboard">
+    <div class="ab-label"><span>02 · onboarding — connect gmail</span><span class="dims">480 × 640</span></div>
+    <div class="frame s-onb grain">
+
+      <div class="steps">
+        <span class="s-dot now"></span>
+        <span class="s-dot"></span>
+        <span class="s-dot"></span>
+        <span class="s-label">Step 1 of 3</span>
+      </div>
+
+      <span class="mark o-mark">Spindle</span>
+
+      <h2>Connect your <em>Gmail</em>.</h2>
+      <p class="lede">Spindle reads supplier emails as they arrive and builds a live style card for every line in production. Read-only — Spindle never sends, deletes, or moves anything.</p>
+
+      <div class="body">
+        <button class="btn-google">
+          <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
+          Continue with Google
+        </button>
+
+        <div class="assure">
+          <div class="a-row">
+            <span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5 6.5 12 13 4.5"/></svg></span>
+            <span><strong>Read-only access.</strong> Spindle can't send, delete, or change your mail.</span>
+          </div>
+          <div class="a-row">
+            <span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5 6.5 12 13 4.5"/></svg></span>
+            <span><strong>You choose the scope.</strong> Next step: pick exactly which senders or labels Spindle watches. Everything else stays private.</span>
+          </div>
+          <div class="a-row">
+            <span class="ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5 6.5 12 13 4.5"/></svg></span>
+            <span><strong>Revoke any time.</strong> One click in settings deletes Spindle's access within 60 seconds.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="micro">2 minutes · no migration · no IT ticket</div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ SCREEN 3 · ONBOARDING — SCOPE ═══════════ -->
+  <div class="artboard">
+    <div class="ab-label"><span>03 · onboarding — scope picker</span><span class="dims">480 × 640</span></div>
+    <div class="frame s-onb grain">
+
+      <div class="steps">
+        <span class="s-dot done"></span>
+        <span class="s-dot now"></span>
+        <span class="s-dot"></span>
+        <span class="s-label">Step 2 of 3</span>
+      </div>
+
+      <h2>What should Spindle <em>watch</em>?</h2>
+      <p class="lede">Spindle reads only what you choose here. Personal mail, internal team threads, and your replies are never read.</p>
+
+      <div class="body">
+
+        <div class="opt selected">
+          <span class="radio"></span>
+          <div>
+            <div class="o-name">A Gmail label</div>
+            <div class="o-sub">Best if you already file supplier mail into a folder.</div>
+            <div class="o-chips">
+              <span class="chip">Suppliers <span class="x">✕</span></span>
+              <span class="chip add">+ Add label</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="opt">
+          <span class="radio"></span>
+          <div>
+            <div class="o-name">Specific senders &amp; domains</div>
+            <div class="o-sub">Watch your factory contacts, agents, and mills by address.</div>
+            <div class="o-chips">
+              <span class="chip mono">@halverra.in <span class="x">✕</span></span>
+              <span class="chip mono">vikram@… <span class="x">✕</span></span>
+              <span class="chip add">+ Add</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="opt">
+          <span class="radio"></span>
+          <div>
+            <div class="o-name">Everyone outside my company</div>
+            <div class="o-sub">Watch all external senders. Mail from <span style="font-family:'JetBrains Mono',monospace; font-size:11px;">@yourbrand.com</span> is always excluded.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="o-foot">
+        <button class="back">← Back</button>
+        <button class="btn primary">Continue</button>
+      </div>
+      <div class="micro">You can change this any time in settings</div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ SCREEN 4 · ONBOARDING — FIRST SCAN ═══════════ -->
+  <div class="artboard">
+    <div class="ab-label"><span>04 · onboarding — first scan</span><span class="dims">480 × 640</span></div>
+    <div class="frame s-onb grain">
+
+      <div class="steps">
+        <span class="s-dot done"></span>
+        <span class="s-dot done"></span>
+        <span class="s-dot now"></span>
+        <span class="s-label">Step 3 of 3</span>
+      </div>
+
+      <span class="mark o-mark">Spindle</span>
+
+      <h2>Spindle is <em>reading</em>.</h2>
+      <p class="lede">Your first style cards are being built right now from the supplier mail already in your inbox. This usually takes a few minutes.</p>
+
+      <div class="body">
+        <div class="scan">
+          <div class="sc-row">
+            <span class="ic done"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5 6.5 12 13 4.5"/></svg></span>
+            <span>Connected to Gmail</span>
+            <span class="count">rhea@halverra.in</span>
+          </div>
+          <div class="sc-row">
+            <span class="ic done"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5 6.5 12 13 4.5"/></svg></span>
+            <span>Watching "Suppliers" label</span>
+            <span class="count">412 emails</span>
+          </div>
+          <div class="sc-row">
+            <span class="ic live"><span class="spin"></span></span>
+            <span>Reading recent supplier mail</span>
+            <span class="count">23 of 60</span>
+          </div>
+          <div class="sc-row pending">
+            <span class="ic wait"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg></span>
+            <span>Building style cards</span>
+            <span class="count">6 so far</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="o-foot">
+        <button class="btn primary">
+          Open Gmail
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </button>
+      </div>
+      <div class="micro">Your first daily digest arrives tomorrow at 7:00am</div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ SCREEN 5 · SETTINGS ═══════════ -->
+  <div class="artboard">
+    <div class="ab-label"><span>05 · settings</span><span class="dims">720 × 880</span></div>
+    <div class="frame s-settings grain">
+
+      <div class="head">
+        <span class="mark">Spindle</span>
+        <h2>Settings</h2>
+        <button class="close" aria-label="Close">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+
+      <div class="scroll">
+
+        <div class="set-sec">
+          <div class="sec-l">Connection</div>
+          <div class="set-row">
+            <div class="r-main">
+              <div class="r-name">Gmail <span class="pill green">Connected</span></div>
+              <div class="r-sub"><code>rhea@halverra.in</code> · read-only access · connected 14 May</div>
+            </div>
+            <button class="btn ghost-red">Revoke access</button>
+          </div>
+        </div>
+
+        <div class="set-sec">
+          <div class="sec-l">Watch scope</div>
+          <div class="set-row">
+            <div class="r-main">
+              <div class="r-name">What Spindle reads</div>
+              <div class="r-sub">Only mail matching this scope is ever read. Everything else stays private.</div>
+              <div class="scope-chips">
+                <span class="chip">Label: Suppliers <span class="x">✕</span></span>
+                <span class="chip mono">@halverra.in <span class="x">✕</span></span>
+                <span class="chip mono">@palamgroup.com <span class="x">✕</span></span>
+                <span class="chip mono">+ 11 senders</span>
+                <span class="chip add">+ Add</span>
+              </div>
+            </div>
+            <span class="link-btn">Edit scope</span>
+          </div>
+        </div>
+
+        <div class="set-sec">
+          <div class="sec-l">Daily digest</div>
+          <div class="set-row">
+            <div class="r-main">
+              <div class="r-name">Morning digest email</div>
+              <div class="r-sub">Five ranked priorities, delivered before your day starts.</div>
+            </div>
+            <span class="toggle on"></span>
+          </div>
+          <div class="set-row">
+            <div class="r-main">
+              <div class="r-name">Send time</div>
+              <div class="r-sub">Europe/London</div>
+            </div>
+            <span class="select-mock">07:00 <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg></span>
+          </div>
+        </div>
+
+        <div class="set-sec">
+          <div class="sec-l">Forwarding inbox</div>
+          <div class="set-row">
+            <div class="r-main">
+              <div class="r-name">Your private Spindle address</div>
+              <div class="r-sub">Forward any email or WhatsApp screenshot here — <code>rhea-7x3k@in.spindle.app</code> — and Spindle files it like everything else.</div>
+            </div>
+            <span class="link-btn">Copy address</span>
+          </div>
+        </div>
+
+        <div class="set-sec">
+          <div class="sec-l">Subscription</div>
+          <div class="set-row">
+            <div class="r-main">
+              <div class="r-name">Founding cohort <span class="pill ochre">£99/mo · locked for life</span></div>
+              <div class="r-sub">Next renewal 14 June · billed via Stripe</div>
+            </div>
+            <span class="link-btn">Manage billing</span>
+          </div>
+        </div>
+
+        <div class="danger-zone">
+          <div class="dz-l">Careful here</div>
+          <div class="set-row">
+            <div class="r-main">
+              <div class="r-name">Pause Spindle</div>
+              <div class="r-sub">Stops all reading and digests until you resume. Nothing is deleted.</div>
+            </div>
+            <span class="toggle"></span>
+          </div>
+          <div class="set-row">
+            <div class="r-main">
+              <div class="r-name">Disconnect &amp; delete my data</div>
+              <div class="r-sub">Deletes OAuth tokens within 60 seconds and all parsed email content within 24 hours.</div>
+            </div>
+            <button class="btn ghost-red">Disconnect</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ SCREEN 6 · DAILY DIGEST EMAIL ═══════════ -->
+  <div class="artboard">
+    <div class="ab-label"><span>06 · daily digest email</span><span class="dims">600 × 940</span></div>
+    <div class="frame s-digest">
+
+      <div class="client-bar">
+        <div class="from"><strong>Spindle</strong> <span class="addr">&lt;today@spindle.app&gt;</span></div>
+        <div class="subj">Lab dip on 6601234 closes its window today — plus 4 more</div>
+      </div>
+
+      <div class="body">
+        <div class="d-head grain">
+          <span class="mark">Spindle</span>
+          <div class="date">Wednesday 14 May · re-ranked 06:54</div>
+          <h2>Five things <em>this morning</em>.</h2>
+        </div>
+
+        <div class="d-item">
+          <span class="num">01</span>
+          <div>
+            <div class="why">Lab dip <span class="kw">8 days overdue</span> on Jasmine Emb Jacket — cutting window closes <span class="kw">today</span>.</div>
+            <div class="meta">
+              <span class="ref"><strong>6601234</strong> · POPPI · blocked</span>
+              <a class="open" href="#">Open in Gmail →</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-item">
+          <span class="num">02</span>
+          <div>
+            <div class="why">Iris emailed <span class="kw">23 days ago</span> on the Frost Satin cancellation — she's about to invoice <span class="kw">£4,200</span> of fabric.</div>
+            <div class="meta">
+              <span class="ref"><strong>SL000040</strong> · MARLOWE LANE · no reply 23d</span>
+              <a class="open" href="#">Open in Gmail →</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-item">
+          <span class="num">03</span>
+          <div>
+            <div class="why">PP approved on Sun Embd Dress — the <span class="kw">48h SLA</span> on fabric confirmation runs out <span class="kw">tomorrow</span>.</div>
+            <div class="meta">
+              <span class="ref"><strong>5501465</strong> · FOREST FERN · SLA window</span>
+              <a class="open" href="#">Open in Gmail →</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-item">
+          <span class="num">04</span>
+          <div>
+            <div class="why">MERIDIAN payment-terms hold approaching <span class="kw">7 days</span> — BL date 22 Jan at risk.</div>
+            <div class="meta">
+              <span class="ref"><strong>82034501</strong> · MERIDIAN · terms hold</span>
+              <a class="open" href="#">Open in Gmail →</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-item" style="border-bottom: 0;">
+          <span class="num">05</span>
+          <div>
+            <div class="why">AURORA fit comments awaited <span class="kw">14 days</span> on Vinnie Top — sample sitting idle.</div>
+            <div class="meta">
+              <span class="ref"><strong>AH6601</strong> · AURORA HOUSE · 14 day silence</span>
+              <a class="open" href="#">Open in Gmail →</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-foot">
+          <div class="line">Everything else is on track — 247 active styles, 12 blocked, 8 shipping this week. Open the production board for the full picture.</div>
+          <div class="links">
+            <a href="#">Open Spindle</a>
+            <a href="#">Pause digest</a>
+            <a href="#">Settings</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

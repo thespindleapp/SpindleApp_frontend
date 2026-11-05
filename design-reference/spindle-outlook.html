@@ -1,0 +1,1911 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spindle for Outlook — concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  /* OUTLOOK CLASSIC PALETTE (2016 / 2019) */
+  --o-bg:           #F3F2F1;
+  --o-surface:      #FFFFFF;
+  --o-surface-2:    #FAFAFA;
+  --o-border:       #EDEBE9;
+  --o-border-strong:#C8C6C4;
+  --o-hairline:     #F3F2F1;
+  --o-text:         #323130;
+  --o-text-soft:    #605E5C;
+  --o-text-muted:   #A19F9D;
+  --o-blue:         #0078D4;
+  --o-blue-deep:    #1F497D;
+  --o-blue-soft:    #DEECF9;
+  --o-blue-hover:   #C7E0F4;
+  --o-ribbon:       #F3F2F1;
+  --o-ribbon-tab:   #FFFFFF;
+  --o-selected:     #CFE4FA;
+  --o-unread:       #1B1A19;
+  --o-divider:      #E1DFDD;
+
+  /* SPINDLE PALETTE (task pane only) */
+  --paper:          #F4EFE5;
+  --paper-deep:     #ECE5D6;
+  --surface:        #FBF8F0;
+  --surface-2:      #F8F4EA;
+  --ink:            #14110C;
+  --ink-soft:       #595142;
+  --ink-muted:      #8A8270;
+  --ink-faint:      #B6AC93;
+  --hairline:       #DDD3C0;
+  --hairline-strong:#C9BFA8;
+  --ochre:          #B07527;
+  --ochre-deep:     #8C5A1B;
+  --ochre-wash:     rgba(232, 198, 121, 0.55);
+  --ochre-soft:     rgba(176, 117, 39, 0.10);
+  --green-acc:      #5C8A4A;
+  --red-acc:        #B23A3A;
+  --blue-acc:       #4F6F94;
+  --red-soft:       rgba(178, 58, 58, 0.10);
+  --green-soft:     rgba(92, 138, 74, 0.10);
+
+  --ease-out:       cubic-bezier(0.23, 1, 0.32, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--o-bg);
+  font-family: 'Segoe UI', -apple-system, system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--o-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--o-blue-soft); }
+
+/* ════════════════ INTRO BANNER ════════════════ */
+.intro {
+  background: var(--paper);
+  border-bottom: 1px solid var(--o-border);
+  padding: 22px 32px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  font-family: 'Geist', -apple-system, sans-serif;
+}
+.intro h1 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 28px;
+  color: var(--ink);
+  letter-spacing: -0.012em;
+  font-weight: 400;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.intro h1 em { color: var(--ochre-deep); }
+.intro .scenario { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; max-width: 78ch; }
+.intro .scenario strong { color: var(--ink); }
+.intro-tag {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: right;
+}
+.intro-tag .v {
+  color: var(--ochre-deep);
+  margin-top: 4px;
+  display: block;
+}
+
+/* ════════════════ OUTLOOK FRAME ════════════════ */
+.outlook { background: var(--o-bg); min-height: 100vh; }
+
+/* ─── TITLE BAR (window chrome at top) ─── */
+.title-bar {
+  height: 28px;
+  background: linear-gradient(180deg, #F0F0F0 0%, #DDDDDD 100%);
+  border-bottom: 1px solid #B6B6B6;
+  display: flex;
+  align-items: center;
+  padding: 0 0 0 8px;
+  font-size: 12px;
+  color: #555;
+  user-select: none;
+}
+.title-bar .traffic {
+  display: flex;
+  gap: 6px;
+  margin-right: 12px;
+}
+.title-bar .traffic span {
+  width: 11px; height: 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+.title-bar .traffic .min { background: #FBBC05; }
+.title-bar .traffic .max { background: #34A853; }
+.title-bar .traffic .close { background: #EA4335; }
+.title-bar .doc-name {
+  flex: 1;
+  text-align: center;
+  font-size: 11.5px;
+  color: #444;
+}
+.title-bar .doc-name strong { color: var(--o-text); }
+.title-bar .win-controls {
+  display: flex;
+  width: 90px;
+  justify-content: flex-end;
+}
+.title-bar .win-controls span {
+  width: 30px; height: 28px;
+  display: grid; place-items: center;
+  font-size: 11px;
+  color: #555;
+}
+
+/* ─── RIBBON ─── */
+.ribbon {
+  background: var(--o-ribbon);
+  border-bottom: 1px solid var(--o-border);
+}
+.ribbon-tabs {
+  display: flex;
+  height: 30px;
+  align-items: flex-end;
+  padding: 0 12px;
+  background: linear-gradient(180deg, var(--o-ribbon) 0%, #ECEAE8 100%);
+  gap: 2px;
+  border-bottom: 1px solid var(--o-border-strong);
+}
+.r-tab {
+  padding: 6px 14px 5px;
+  font-size: 12px;
+  color: var(--o-text-soft);
+  cursor: pointer;
+  border-radius: 3px 3px 0 0;
+  transition: background 120ms;
+}
+.r-tab:hover { background: rgba(255,255,255,0.5); }
+.r-tab.active {
+  background: white;
+  color: var(--o-text);
+  border: 1px solid var(--o-border);
+  border-bottom-color: white;
+  margin-bottom: -1px;
+  font-weight: 600;
+  position: relative;
+  z-index: 2;
+}
+.r-tab.special {
+  color: var(--ochre-deep);
+  font-weight: 500;
+}
+.r-tab.special::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--ochre);
+  border-radius: 999px;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+
+/* Ribbon body — buttons/groups */
+.ribbon-body {
+  background: white;
+  height: 86px;
+  display: flex;
+  align-items: stretch;
+  padding: 4px 8px;
+  gap: 0;
+  border-bottom: 1px solid var(--o-border);
+}
+.r-group {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--o-divider);
+  padding: 0 12px;
+  align-items: center;
+}
+.r-group .r-buttons {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  align-items: center;
+}
+.r-group .r-label {
+  font-size: 10.5px;
+  color: var(--o-text-soft);
+  padding: 2px 0 4px;
+  text-align: center;
+}
+.r-btn {
+  display: grid;
+  grid-template-rows: 32px 16px;
+  align-items: center;
+  justify-items: center;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  min-width: 44px;
+  transition: background 120ms;
+}
+.r-btn:hover { background: var(--o-blue-soft); }
+.r-btn.large { min-width: 60px; }
+.r-btn .ico {
+  display: grid; place-items: center;
+  color: var(--o-blue);
+  font-size: 22px;
+  line-height: 1;
+}
+.r-btn .lab {
+  font-size: 10.5px;
+  color: var(--o-text);
+  text-align: center;
+  line-height: 1.1;
+}
+.r-btn-sm {
+  display: grid;
+  grid-template-columns: 16px auto;
+  gap: 5px;
+  align-items: center;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.r-btn-sm:hover { background: var(--o-blue-soft); }
+.r-btn-sm .ico { color: var(--o-blue); font-size: 13px; line-height: 1; }
+
+/* Spindle ribbon button — distinguished */
+.r-btn.spindle {
+  background: var(--paper);
+  border: 1px solid var(--hairline-strong);
+}
+.r-btn.spindle:hover { background: var(--paper-deep); }
+.r-btn.spindle.active {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.r-btn.spindle.active .ico,
+.r-btn.spindle.active .lab { color: var(--paper); }
+.r-btn.spindle .ico {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  color: var(--ochre-deep);
+  position: relative;
+}
+.r-btn.spindle .ico::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 4px; height: 4px;
+  border-radius: 999px;
+  background: var(--ochre);
+  margin-left: 1px;
+}
+.r-btn.spindle.active .ico { color: var(--paper); }
+.r-btn.spindle.active .ico::after { background: var(--ochre); }
+
+/* Search row */
+.r-search {
+  height: 36px;
+  background: white;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--o-border);
+}
+.r-search .field {
+  flex: 1;
+  max-width: 600px;
+  height: 24px;
+  background: white;
+  border: 1px solid var(--o-border-strong);
+  border-radius: 2px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--o-text-soft);
+}
+.r-search .field svg { width: 12px; height: 12px; flex-shrink: 0; }
+.r-search .field input {
+  background: transparent;
+  border: 0; outline: 0;
+  flex: 1;
+  font: inherit;
+  color: var(--o-text);
+  min-width: 0;
+}
+.r-search .meta {
+  font-size: 11px;
+  color: var(--o-text-muted);
+  margin-left: auto;
+}
+
+/* ════════════════ BODY GRID ════════════════ */
+.outlook-body {
+  display: grid;
+  grid-template-columns: 220px 320px 1fr 360px;
+  height: calc(100vh - 28px - 30px - 86px - 36px - 100px);
+  min-height: 720px;
+  background: white;
+}
+
+/* ─── LEFT: FOLDER PANE ─── */
+.folders {
+  background: var(--o-bg);
+  border-right: 1px solid var(--o-border);
+  padding: 8px 0;
+  overflow-y: auto;
+}
+.folder-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--o-text);
+  padding: 6px 14px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.folder-head .av {
+  width: 20px; height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #C49449, #8C5A1B);
+  color: white;
+  display: grid; place-items: center;
+  font-size: 9px;
+  font-weight: 600;
+}
+.folder-head .name { font-size: 12px; }
+.folder-head .meta {
+  font-size: 10.5px;
+  color: var(--o-text-soft);
+  font-weight: 400;
+  margin-left: auto;
+}
+
+.folder {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 14px 4px 18px;
+  font-size: 12px;
+  color: var(--o-text);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.folder:hover { background: var(--o-divider); }
+.folder.active { background: var(--o-selected); font-weight: 600; }
+.folder .ico { color: var(--o-blue); font-size: 13px; line-height: 1; display: grid; place-items: center; }
+.folder.active .ico { color: var(--o-blue-deep); }
+.folder .count {
+  font-size: 11px;
+  color: var(--o-text-muted);
+}
+.folder.active .count { color: var(--o-blue-deep); }
+.folder .arrow { color: var(--o-text-muted); font-size: 9px; line-height: 1; }
+.folder.sub { padding-left: 30px; }
+
+.folder-section {
+  font-size: 10.5px;
+  color: var(--o-text-soft);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 14px 14px 4px;
+}
+.folder-section .pct {
+  font-weight: 400;
+  font-size: 9.5px;
+  color: var(--o-text-muted);
+  letter-spacing: 0.04em;
+}
+
+/* Spindle injected folder section */
+.folder.spindle-folder {
+  background: linear-gradient(90deg, var(--paper) 0%, transparent 80%);
+  position: relative;
+}
+.folder.spindle-folder::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 14px;
+  background: var(--ochre);
+  border-radius: 0 2px 2px 0;
+}
+.folder.spindle-folder .ico { color: var(--ochre-deep); }
+.folder.spindle-folder .count { color: var(--ochre-deep); font-weight: 500; }
+
+/* ─── EMAIL LIST (middle column) ─── */
+.email-list {
+  border-right: 1px solid var(--o-border);
+  background: white;
+  overflow-y: auto;
+}
+.list-toolbar {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 12px;
+  border-bottom: 1px solid var(--o-border);
+  background: var(--o-surface-2);
+  font-size: 11.5px;
+  color: var(--o-text-soft);
+}
+.list-toolbar .lt-action {
+  font-size: 11.5px;
+  color: var(--o-text-soft);
+  cursor: pointer;
+}
+.list-toolbar .lt-action:hover { color: var(--o-text); }
+.list-toolbar .sep { width: 1px; height: 14px; background: var(--o-divider); }
+
+.list-section {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--o-text-soft);
+  padding: 6px 12px 4px;
+  background: var(--o-surface-2);
+  border-bottom: 1px solid var(--o-border);
+  letter-spacing: 0.02em;
+}
+
+.email-row {
+  padding: 8px 10px 8px 12px;
+  border-bottom: 1px solid var(--o-border);
+  cursor: pointer;
+  position: relative;
+  transition: background 120ms;
+}
+.email-row:hover { background: var(--o-bg); }
+.email-row.selected { background: var(--o-selected); }
+.email-row.unread { font-weight: 600; }
+.email-row.unread::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--o-blue);
+}
+
+.er-from {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.er-from .name {
+  font-size: 12.5px;
+  color: var(--o-text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.er-from .time {
+  font-size: 10.5px;
+  color: var(--o-text-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: 400;
+}
+.email-row.unread .er-from .time { color: var(--o-blue); font-weight: 600; }
+.er-subject {
+  font-size: 12px;
+  color: var(--o-text);
+  margin-bottom: 3px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.email-row:not(.unread) .er-subject { font-weight: 400; }
+.er-preview {
+  font-size: 11.5px;
+  color: var(--o-text-soft);
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 5px;
+}
+.er-tags {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.er-spindle-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 5px;
+  background: var(--paper);
+  border: 1px solid var(--hairline-strong);
+  border-left: 3px solid var(--ochre);
+  border-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.er-spindle-tag.blocked { border-left-color: var(--red-acc); color: var(--red-acc); }
+.er-spindle-tag.waiting { border-left-color: var(--ochre-deep); color: var(--ochre-deep); }
+.er-spindle-tag.shipped { border-left-color: var(--blue-acc); color: var(--blue-acc); }
+.er-spindle-tag .dot { width: 4px; height: 4px; border-radius: 999px; background: currentColor; }
+.er-attach {
+  display: inline-block;
+  font-size: 10.5px;
+  color: var(--o-text-muted);
+  margin-left: auto;
+}
+
+/* ─── READING PANE ─── */
+.reading {
+  background: white;
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+}
+.r-subject {
+  font-size: 17px;
+  color: var(--o-text);
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.005em;
+}
+.r-categories {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.r-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: white;
+  border: 1px solid var(--o-border-strong);
+  border-radius: 2px;
+  font-size: 11px;
+  color: var(--o-text-soft);
+}
+.r-category .swatch {
+  width: 8px; height: 8px;
+  background: var(--o-yellow, #FFD27F);
+}
+.r-category.spindle {
+  background: var(--paper);
+  border-color: var(--hairline-strong);
+  border-left: 3px solid var(--ochre);
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.r-category.spindle.blocked { border-left-color: var(--red-acc); color: var(--red-acc); }
+
+/* Spindle insight strip — fits the Outlook context */
+.spindle-strip {
+  background: linear-gradient(90deg, var(--paper) 0%, var(--paper-deep) 100%);
+  border: 1px solid var(--hairline-strong);
+  border-left: 3px solid var(--ochre);
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  position: relative;
+  font-family: 'Geist', -apple-system, sans-serif;
+}
+.spindle-strip::before {
+  content: 'spindle add-in';
+  position: absolute;
+  top: -7px; left: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  background: var(--ochre);
+  color: var(--ink);
+  padding: 1px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.strip-mark {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  color: var(--ochre-deep);
+  line-height: 1;
+  width: 28px;
+  text-align: center;
+}
+.strip-text {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 14.5px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.strip-text .kw {
+  background: var(--ochre-wash);
+  font-style: normal;
+  font-family: 'Geist', sans-serif;
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+.strip-cta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ochre-deep);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: white;
+  padding: 5px 11px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 160ms;
+}
+.strip-cta:hover { background: var(--ochre); border-color: var(--ochre); color: var(--ink); }
+
+/* Sender card */
+.sender {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--o-divider);
+}
+.sender .av {
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4F6F94, #2A4561);
+  color: white;
+  display: grid; place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+.sender .who {
+  font-size: 13px;
+  color: var(--o-text);
+  font-weight: 600;
+}
+.sender .who small {
+  color: var(--o-text-soft);
+  font-weight: 400;
+  font-size: 11.5px;
+  margin-left: 4px;
+}
+.sender .meta {
+  font-size: 11.5px;
+  color: var(--o-text-soft);
+  margin-top: 2px;
+}
+.sender .meta .read-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--ochre-deep);
+  background: var(--paper);
+  border: 1px solid var(--hairline-strong);
+  padding: 1px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.sender .meta .read-stamp::before {
+  content: '';
+  width: 4px; height: 4px;
+  border-radius: 999px;
+  background: var(--green-acc);
+}
+
+.email-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--o-text);
+}
+.email-body p { margin-bottom: 12px; }
+.email-body .ext {
+  background: var(--ochre-wash);
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 500;
+  position: relative;
+  cursor: help;
+}
+.email-body .ext::after {
+  content: '↗';
+  font-size: 9px;
+  color: var(--ochre-deep);
+  margin-left: 1px;
+  position: relative;
+  top: -1px;
+}
+.email-body .signoff {
+  color: var(--o-text-soft);
+  font-size: 12px;
+  margin-top: 14px;
+}
+
+.attachments {
+  margin: 14px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+}
+.attach {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  background: white;
+  border: 1px solid var(--o-border-strong);
+  border-radius: 3px;
+}
+.attach:hover { background: var(--o-surface-2); }
+.attach .icon {
+  width: 30px; height: 30px;
+  background: #FCE8E6;
+  display: grid; place-items: center;
+  border-radius: 2px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: #EA4335;
+  letter-spacing: 0.04em;
+}
+.attach .icon.img { background: #DEECF9; color: var(--o-blue); }
+.attach .name {
+  font-size: 11.5px;
+  color: var(--o-text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attach .meta { font-size: 10px; color: var(--o-text-muted); }
+.attach .spindle-flag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  color: var(--ochre-deep);
+  background: var(--paper);
+  padding: 1px 4px;
+  border-radius: 2px;
+  border: 1px solid var(--hairline-strong);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* ════════════════ TASK PANE (right column — Spindle add-in) ════════════════ */
+.task-pane {
+  background: white;
+  border-left: 1px solid var(--o-border-strong);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Geist', -apple-system, sans-serif;
+  position: relative;
+}
+
+/* Task pane header (Office.js standard pattern) */
+.tp-head {
+  height: 32px;
+  background: var(--paper-deep);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.tp-head .brand {
+  display: inline-flex; align-items: baseline; gap: 3px;
+}
+.tp-head .brand .mark {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.tp-head .brand .mark::after {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 3px;
+  margin-left: 1px;
+  border-radius: 999px;
+  background: var(--ochre);
+  transform: translateY(-1px);
+}
+.tp-head .add-in-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+.tp-head-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.tp-head-icon {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 3px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.tp-head-icon:hover { background: rgba(20,17,12,0.06); }
+.tp-head-icon svg { width: 12px; height: 12px; }
+
+/* Task pane tabs */
+.tp-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper);
+  flex-shrink: 0;
+}
+.tp-tab {
+  padding: 9px 4px 8px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-align: center;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 160ms;
+  font-family: 'Geist', -apple-system, sans-serif;
+  font-weight: 500;
+}
+.tp-tab:hover { color: var(--ink); }
+.tp-tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--ochre);
+  font-weight: 600;
+}
+.tp-tab .badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  background: var(--g-red, #EA4335);
+  color: white;
+  padding: 0 5px;
+  border-radius: 999px;
+  margin-left: 3px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
+/* Task pane content */
+.tp-content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--paper);
+  position: relative;
+}
+.tp-content::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: 0.32;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.078  0 0 0 0 0.067  0 0 0 0 0.047  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+.tp-content > * { position: relative; z-index: 1; }
+
+/* Detected style panel */
+.tp-detected {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.tp-l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ochre-deep);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.tp-l::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: var(--green-acc);
+  animation: breathe 1.8s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100% { opacity: 0.5 } 50% { opacity: 1 } }
+.tp-style-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+.tp-name {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  line-height: 1.05;
+  margin-bottom: 9px;
+}
+.tp-pills {
+  display: flex; gap: 5px; flex-wrap: wrap;
+}
+.tp-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.tp-pill .dot { width: 4px; height: 4px; border-radius: 999px; background: currentColor; }
+.tp-pill.blocked { background: rgba(178,58,58,0.10); color: var(--red-acc); }
+.tp-pill.brand { background: white; color: var(--ink); border: 1px solid var(--hairline-strong); }
+
+/* Compact sketch + facts */
+.tp-sketch-block {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.tp-sketch-frame {
+  background: #FFFEFB;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 6px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 90px;
+}
+.tp-sketch-frame::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, var(--hairline) 0.4px, transparent 0.4px);
+  background-size: 8px 8px;
+  background-position: 4px 4px;
+  opacity: 0.4;
+  border-radius: 4px;
+}
+.tp-sketch-frame svg {
+  width: 65px; height: auto;
+  position: relative;
+}
+.tp-sketch-frame svg .ink-line { fill: none; stroke: var(--ink); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.tp-sketch-frame svg .ink-thin { fill: none; stroke: var(--ink); stroke-width: 0.8; stroke-linecap: round; stroke-linejoin: round; }
+.tp-sketch-frame svg .ink-dash { fill: none; stroke: var(--ink-soft); stroke-width: 0.6; stroke-dasharray: 1.3 1.3; }
+.tp-sketch-frame svg .embr { fill: var(--ochre); }
+
+.tp-facts { display: grid; gap: 4px; align-content: start; }
+.tp-fact {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 5px;
+  font-size: 11px;
+  align-items: baseline;
+}
+.tp-fact .l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tp-fact .v { color: var(--ink); line-height: 1.3; }
+.tp-fact .v em {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  color: var(--ochre-deep);
+}
+
+/* Mini timeline */
+.tp-tl-block {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.tp-tl-l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 7px;
+  display: flex; justify-content: space-between;
+}
+.tp-tl-l .right { color: var(--ochre-deep); }
+.tp-tl {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  align-items: center;
+  position: relative;
+}
+.tp-tl::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 4px; right: 4px;
+  height: 1px;
+  background: var(--hairline);
+}
+.tp-tl-cell { display: grid; place-items: center; position: relative; z-index: 1; }
+.tp-tl-dot {
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1.2px solid var(--hairline-strong);
+}
+.tp-tl-cell.done .tp-tl-dot { background: var(--green-acc); border-color: var(--green-acc); }
+.tp-tl-cell.blocked .tp-tl-dot {
+  background: var(--red-acc); border-color: var(--red-acc);
+  box-shadow: 0 0 0 3px rgba(178,58,58,0.10);
+}
+.tp-tl-stages {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  margin-top: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  color: var(--ink-muted);
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Why now */
+.tp-why {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface);
+}
+.tp-why-text {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.4;
+  margin-bottom: 5px;
+}
+.tp-why-text .kw {
+  background: var(--ochre-wash);
+  font-style: normal;
+  font-family: 'Geist', sans-serif;
+  font-size: 11px;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+.tp-why-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Recent threads (compact) */
+.tp-threads {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.tp-threads .l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 7px;
+  display: flex; justify-content: space-between;
+}
+.tp-thread {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 6px;
+  align-items: baseline;
+  padding: 4px 0;
+  font-size: 11px;
+  border-bottom: 1px dashed var(--hairline);
+  cursor: pointer;
+}
+.tp-thread:last-child { border-bottom: 0; }
+.tp-thread .src {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  width: 18px; height: 14px;
+  display: grid; place-items: center;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.tp-thread .src.now { background: var(--ochre); color: var(--ink); border-color: var(--ochre); }
+.tp-thread .label {
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.tp-thread.self .label { color: var(--ink-muted); }
+.tp-thread .ago {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+
+/* Action buttons */
+.tp-actions {
+  padding: 10px 14px;
+  display: grid; gap: 5px;
+}
+.tp-action {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 5px;
+  background: white;
+  font-size: 11.5px;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: 'Geist', -apple-system, sans-serif;
+  transition: background 160ms, border-color 160ms;
+}
+.tp-action:hover { background: var(--surface-2); border-color: var(--ink-faint); }
+.tp-action svg { width: 12px; height: 12px; color: var(--ink-soft); }
+.tp-action.primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.tp-action.primary svg { color: var(--paper); }
+.tp-action.primary:hover { background: #28221A; }
+
+/* Footer in task pane */
+.tp-foot {
+  padding: 8px 14px 12px;
+  border-top: 1px solid var(--hairline);
+  background: var(--paper);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.tp-foot a { color: var(--ochre-deep); }
+
+/* ════════════════ NOTES ════════════════ */
+.notes {
+  background: var(--paper);
+  padding: 36px 40px 56px;
+  border-top: 1px solid var(--o-border);
+  font-family: 'Geist', -apple-system, sans-serif;
+}
+.notes h2 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 32px;
+  color: var(--ink);
+  letter-spacing: -0.012em;
+  margin-bottom: 8px;
+}
+.notes h2 em { color: var(--ochre-deep); }
+.notes .lede {
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  max-width: 64ch;
+  margin-bottom: 28px;
+  line-height: 1.55;
+}
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+@media (max-width: 880px) { .notes-grid { grid-template-columns: 1fr; } }
+.note {
+  background: white;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 22px 24px;
+}
+.note .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ochre-deep);
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.note h3 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  color: var(--ink);
+  letter-spacing: -0.008em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.note p {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+.note p:last-child { margin-bottom: 0; }
+.note p strong { color: var(--ink); font-weight: 500; }
+.note .row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 12.5px;
+  border-bottom: 1px dashed var(--hairline);
+  align-items: baseline;
+}
+.note .row:last-child { border-bottom: 0; }
+.note .row .l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.note .row .v { color: var(--ink); line-height: 1.4; }
+.note .row .v.good { color: var(--green-acc); font-weight: 500; }
+.note .row .v.bad { color: var(--red-acc); }
+
+@media (max-width: 1280px) {
+  .outlook-body { grid-template-columns: 200px 280px 1fr 320px; }
+}
+@media (max-width: 1080px) {
+  .outlook-body { grid-template-columns: 64px 1fr 0; }
+  .folders { display: none; }
+  .task-pane { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="intro">
+  <div>
+    <h1>Spindle for <em>Outlook</em>.</h1>
+    <div class="scenario"><strong>An Office.js task-pane add-in</strong>, designed for the older Outlook installs (2016, 2019, 2021) most fashion brands and manufacturers actually use. The add-in opens as a sidebar via a ribbon button — works on Windows, Mac, web, and mobile, with no client install beyond admin approval once.</div>
+  </div>
+  <div class="intro-tag">
+    Concept · v0.1
+    <span class="v">Outlook 2016+ · Office.js</span>
+  </div>
+</div>
+
+<!-- ════════════════ OUTLOOK ════════════════ -->
+<div class="outlook">
+
+  <!-- TITLE BAR -->
+  <div class="title-bar">
+    <div class="traffic">
+      <span class="close"></span>
+      <span class="min"></span>
+      <span class="max"></span>
+    </div>
+    <div class="doc-name"><strong>Inbox — Rhea Khanna</strong> — Outlook</div>
+    <div class="win-controls">
+      <span>—</span><span>□</span><span>×</span>
+    </div>
+  </div>
+
+  <!-- RIBBON -->
+  <div class="ribbon">
+    <div class="ribbon-tabs">
+      <div class="r-tab">File</div>
+      <div class="r-tab active">Home</div>
+      <div class="r-tab">Send / Receive</div>
+      <div class="r-tab">Folder</div>
+      <div class="r-tab">View</div>
+      <div class="r-tab">Help</div>
+      <div class="r-tab special">Spindle</div>
+    </div>
+
+    <div class="ribbon-body">
+      <div class="r-group">
+        <div class="r-buttons">
+          <div class="r-btn large">
+            <div class="ico">✉</div>
+            <div class="lab">New Email</div>
+          </div>
+          <div class="r-btn">
+            <div class="ico">📋</div>
+            <div class="lab">New Items</div>
+          </div>
+        </div>
+        <div class="r-label">New</div>
+      </div>
+
+      <div class="r-group">
+        <div class="r-buttons">
+          <div class="r-btn">
+            <div class="ico">🗑</div>
+            <div class="lab">Delete</div>
+          </div>
+          <div class="r-btn">
+            <div class="ico">🚫</div>
+            <div class="lab">Junk</div>
+          </div>
+          <div class="r-btn">
+            <div class="ico">📦</div>
+            <div class="lab">Archive</div>
+          </div>
+        </div>
+        <div class="r-label">Delete</div>
+      </div>
+
+      <div class="r-group">
+        <div class="r-buttons">
+          <div class="r-btn">
+            <div class="ico">↩</div>
+            <div class="lab">Reply</div>
+          </div>
+          <div class="r-btn">
+            <div class="ico">↩↩</div>
+            <div class="lab">Reply All</div>
+          </div>
+          <div class="r-btn">
+            <div class="ico">↪</div>
+            <div class="lab">Forward</div>
+          </div>
+        </div>
+        <div class="r-label">Respond</div>
+      </div>
+
+      <!-- SPINDLE GROUP — the ribbon button that opens the task pane -->
+      <div class="r-group">
+        <div class="r-buttons">
+          <div class="r-btn spindle active large">
+            <div class="ico">S</div>
+            <div class="lab">Open Spindle</div>
+          </div>
+          <div style="display: grid; gap: 1px; padding: 2px 0;">
+            <div class="r-btn-sm">
+              <div class="ico">📋</div>
+              <span>Production board</span>
+            </div>
+            <div class="r-btn-sm">
+              <div class="ico">⏰</div>
+              <span>Today (5)</span>
+            </div>
+            <div class="r-btn-sm">
+              <div class="ico">⚙</div>
+              <span>Settings</span>
+            </div>
+          </div>
+        </div>
+        <div class="r-label">Spindle Add-in</div>
+      </div>
+
+      <div class="r-group">
+        <div class="r-buttons">
+          <div class="r-btn">
+            <div class="ico">📁</div>
+            <div class="lab">Move</div>
+          </div>
+          <div class="r-btn">
+            <div class="ico">🏷</div>
+            <div class="lab">Categorize</div>
+          </div>
+        </div>
+        <div class="r-label">Move</div>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="r-search">
+      <div class="field">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="m17 17 4 4"/></svg>
+        <input type="text" value="Search Current Mailbox" readonly>
+      </div>
+      <span class="meta">Current Mailbox ▼</span>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="outlook-body">
+
+    <!-- ═══ FOLDER PANE ═══ -->
+    <aside class="folders">
+      <div class="folder-head">
+        <div class="av">RK</div>
+        <div class="name">rhea@halverra.in</div>
+        <span class="meta">▼</span>
+      </div>
+
+      <div class="folder">
+        <span class="ico">▼</span>
+        <span>Inbox</span>
+        <span class="count">412</span>
+      </div>
+      <div class="folder sub active">
+        <span class="ico">📥</span>
+        <span>Inbox</span>
+        <span class="count">23</span>
+      </div>
+      <div class="folder sub">
+        <span class="ico">📋</span>
+        <span>Drafts</span>
+        <span class="count">2</span>
+      </div>
+      <div class="folder sub">
+        <span class="ico">📤</span>
+        <span>Sent Items</span>
+      </div>
+      <div class="folder sub">
+        <span class="ico">🗑</span>
+        <span>Deleted</span>
+      </div>
+      <div class="folder sub">
+        <span class="ico">📦</span>
+        <span>Archive</span>
+      </div>
+
+      <!-- Spindle injected folder section -->
+      <div class="folder-section">
+        Spindle <span class="pct">add-in</span>
+      </div>
+
+      <div class="folder spindle-folder">
+        <span class="ico">⏰</span>
+        <span>Today</span>
+        <span class="count">5</span>
+      </div>
+      <div class="folder spindle-folder">
+        <span class="ico">📋</span>
+        <span>Production board</span>
+        <span class="count">247</span>
+      </div>
+      <div class="folder spindle-folder">
+        <span class="ico">📁</span>
+        <span>Stale but live</span>
+        <span class="count">11</span>
+      </div>
+
+      <div class="folder-section" style="margin-top: 8px;">
+        Style categories <span class="pct">auto · 18</span>
+      </div>
+
+      <div class="folder">
+        <span class="ico" style="color: #998562;">●</span>
+        <span style="font-family: monospace; font-size: 10px; color: var(--o-text-muted); margin-right: 4px;">6601234</span>
+        <span class="count">14</span>
+      </div>
+      <div class="folder">
+        <span class="ico" style="color: #2A2520;">●</span>
+        <span style="font-family: monospace; font-size: 10px; color: var(--o-text-muted); margin-right: 4px;">6601258</span>
+        <span class="count">6</span>
+      </div>
+      <div class="folder">
+        <span class="ico" style="color: #E8DDC2;">●</span>
+        <span style="font-family: monospace; font-size: 10px; color: var(--o-text-muted); margin-right: 4px;">5501465</span>
+        <span class="count">11</span>
+      </div>
+      <div class="folder">
+        <span class="ico" style="color: #C7895A;">●</span>
+        <span style="font-family: monospace; font-size: 10px; color: var(--o-text-muted); margin-right: 4px;">7001770</span>
+        <span class="count">8</span>
+      </div>
+      <div class="folder">
+        <span class="ico">…</span>
+        <span style="font-size: 11px; color: var(--o-text-muted);">+ 14 more styles</span>
+      </div>
+    </aside>
+
+    <!-- ═══ EMAIL LIST ═══ -->
+    <div class="email-list">
+
+      <div class="list-toolbar">
+        <span class="lt-action">All</span>
+        <span class="lt-action">Unread</span>
+        <span class="sep"></span>
+        <span style="font-size: 11px; color: var(--o-text-muted);">By Date ▾</span>
+      </div>
+
+      <div class="list-section">Today</div>
+
+      <div class="email-row unread">
+        <div class="er-from">
+          <span class="name">Vikram Sethi <span style="font-weight:400; color: var(--o-text-soft); font-size: 10.5px;">(forwarded)</span></span>
+          <span class="time">2:32 PM</span>
+        </div>
+        <div class="er-subject">Re: 6601234 — fabric ETA update</div>
+        <div class="er-preview">Hi ma'am, fabric for 6601234 will reach factory only by 28 Jan...</div>
+        <div class="er-tags">
+          <span class="er-spindle-tag blocked"><span class="dot"></span>6601234 · blocked</span>
+        </div>
+      </div>
+
+      <div class="email-row selected">
+        <div class="er-from">
+          <span class="name">Vikram Sethi</span>
+          <span class="time">12:18 PM</span>
+        </div>
+        <div class="er-subject">Re: 6601234 — fabric ETA update</div>
+        <div class="er-preview">Hi ma'am, fabric for 6601234 Jasmine Emb Jacket khaki...</div>
+        <div class="er-tags">
+          <span class="er-spindle-tag blocked"><span class="dot"></span>6601234 · blocked</span>
+          <span class="er-attach">📎 2</span>
+        </div>
+      </div>
+
+      <div class="email-row unread">
+        <div class="er-from">
+          <span class="name">Iris Halloran</span>
+          <span class="time">10:04 AM</span>
+        </div>
+        <div class="er-subject">SL000040 — Frost Satin cancellation, fabric liability</div>
+        <div class="er-preview">Bumping this — about to invoice for fabric we already cut...</div>
+        <div class="er-tags">
+          <span class="er-spindle-tag waiting"><span class="dot"></span>SL000040 · waiting</span>
+        </div>
+      </div>
+
+      <div class="email-row unread">
+        <div class="er-from">
+          <span class="name">Lena Souza</span>
+          <span class="time">9:47 AM</span>
+        </div>
+        <div class="er-subject">5501465 — PP sample approved, fabric confirmation needed</div>
+        <div class="er-preview">Brand approved the PP today. Can you confirm fabric reservation...</div>
+        <div class="er-tags">
+          <span class="er-spindle-tag waiting"><span class="dot"></span>5501465 · waiting</span>
+          <span class="er-attach">📎 1</span>
+        </div>
+      </div>
+
+      <div class="list-section">Yesterday</div>
+
+      <div class="email-row">
+        <div class="er-from">
+          <span class="name">Joaquín Reyes</span>
+          <span class="time">Wed 4:21 PM</span>
+        </div>
+        <div class="er-subject">Re: Payment terms confirmation</div>
+        <div class="er-preview">Confirmed. Net 30 from BL. Please proceed with shipping...</div>
+        <div class="er-tags">
+          <span class="er-spindle-tag"><span class="dot"></span>82034501 · ontrack</span>
+        </div>
+      </div>
+
+      <div class="email-row">
+        <div class="er-from">
+          <span class="name">Nina Whitley</span>
+          <span class="time">Wed 11:05 AM</span>
+        </div>
+        <div class="er-subject">Kamila Cami — BL drafted, sailing 14 Jan</div>
+        <div class="er-preview">Attached BL draft for review. Vessel MV Helene...</div>
+        <div class="er-tags">
+          <span class="er-spindle-tag shipped"><span class="dot"></span>7001770 · shipped</span>
+          <span class="er-attach">📎 1</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══ READING PANE ═══ -->
+    <div class="reading">
+      <div class="r-subject">Re: 6601234 — fabric ETA update</div>
+
+      <div class="r-categories">
+        <span class="r-category"><span class="swatch" style="background:#FFD27F;"></span>Production</span>
+        <span class="r-category spindle blocked">↳ 6601234 · blocked</span>
+      </div>
+
+      <!-- Spindle insight strip — injected above the email body -->
+      <div class="spindle-strip">
+        <span class="strip-mark">!</span>
+        <div class="strip-text">
+          14th message on style 6601234. Lab dip pending <span class="kw">8 days</span>; cutting window closes <span class="kw">tomorrow</span>. Delivery slipping past <span class="kw">15 Feb</span>.
+        </div>
+        <button class="strip-cta">Open in Spindle →</button>
+      </div>
+
+      <div class="sender">
+        <div class="av">VS</div>
+        <div>
+          <div class="who">Vikram Sethi <small>&lt;vikram@halverra.in&gt;</small></div>
+          <div class="meta">
+            Wed 12:18 PM · forwarded from WhatsApp
+            <span class="read-stamp">spindle filed · 12:18</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="email-body">
+        <p>Hi ma'am,</p>
+        <p>Hope you are well. Quick update on <span class="ext">6601234 Jasmine Emb Jacket khaki</span> — fabric mill confirmed dispatch is delayed. Cotton Duck 280gsm will reach our cutting floor only by <span class="ext">28 Jan</span>, not 18 Jan as originally planned.</p>
+        <p>Given this, the cutting window will start <span class="ext">29 Jan</span> earliest. Bulk production timeline will push by ~10 days, which means we'll need to revise the delivery date to <span class="ext">mid Feb</span> (likely 15–18 Feb). Please confirm you can absorb this with your end client.</p>
+        <p>Also — still waiting on the lab dip approval from brand side. Without that we cannot start dyeing. If the brand can confirm by tomorrow EOD, we still hold the loom slot.</p>
+        <p class="signoff">Thanks &amp; regards,<br>Vikram</p>
+      </div>
+
+      <div class="attachments">
+        <div class="attach">
+          <div class="icon">PDF</div>
+          <div>
+            <div class="name">6601234_revised_timeline.pdf</div>
+            <div class="meta">142 KB · 2 pages</div>
+          </div>
+          <span class="spindle-flag">↳ parsed</span>
+        </div>
+        <div class="attach">
+          <div class="icon img">JPG</div>
+          <div>
+            <div class="name">fabric_lot_4271.jpg</div>
+            <div class="meta">2.1 MB · image</div>
+          </div>
+          <span class="spindle-flag">↳ tagged</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TASK PANE — Spindle add-in ═══ -->
+    <aside class="task-pane">
+
+      <div class="tp-head">
+        <div class="brand">
+          <span class="mark">Spindle</span>
+        </div>
+        <span class="add-in-tag">add-in</span>
+        <div class="tp-head-actions">
+          <button class="tp-head-icon" title="Pop out"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2h5v5M14 2 9 7M11 13H4V6"/></svg></button>
+          <button class="tp-head-icon" title="Settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3 3l2 2M11 11l2 2M3 13l2-2M11 5l2-2"/></svg></button>
+          <button class="tp-head-icon" title="Close"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+        </div>
+      </div>
+
+      <!-- Tabs (Office.js standard) -->
+      <div class="tp-tabs">
+        <button class="tp-tab active">This style</button>
+        <button class="tp-tab">Today<span class="badge">5</span></button>
+        <button class="tp-tab">Board</button>
+        <button class="tp-tab">Search</button>
+      </div>
+
+      <div class="tp-content">
+
+        <!-- Detected style -->
+        <div class="tp-detected">
+          <div class="tp-l">style detected from email</div>
+          <div class="tp-style-num">6601234 · POPPI · AW25</div>
+          <div class="tp-name">Jasmine Emb Jacket</div>
+          <div class="tp-pills">
+            <span class="tp-pill blocked"><span class="dot"></span>Blocked · lab dip</span>
+            <span class="tp-pill brand">khaki · 600u</span>
+          </div>
+        </div>
+
+        <!-- Sketch + facts -->
+        <div class="tp-sketch-block">
+          <div class="tp-sketch-frame">
+            <svg viewBox="0 0 90 130">
+              <path class="ink-line" d="M 18 22 L 6 30 L 5 80 L 17 81 L 19 32 Z"/>
+              <path class="ink-line" d="M 72 22 L 84 30 L 85 80 L 73 81 L 71 32 Z"/>
+              <path class="ink-line" d="M 18 22 L 35 16 Q 45 14 55 16 L 72 22 L 75 110 L 15 110 Z"/>
+              <path class="ink-line" d="M 35 16 Q 45 22 55 16 L 54 26 Q 45 30 36 26 Z"/>
+              <path class="ink-line" d="M 45 26 L 45 110"/>
+              <rect class="ink-thin" x="22" y="80" width="18" height="14" rx="1"/>
+              <rect class="ink-thin" x="50" y="80" width="18" height="14" rx="1"/>
+              <circle class="embr" cx="29" cy="36" r="0.8"/>
+              <circle class="embr" cx="32" cy="34" r="0.6"/>
+              <circle class="embr" cx="26" cy="34" r="0.6"/>
+              <circle class="embr" cx="61" cy="36" r="0.8"/>
+              <circle class="embr" cx="64" cy="34" r="0.6"/>
+              <circle class="embr" cx="58" cy="34" r="0.6"/>
+            </svg>
+          </div>
+          <div class="tp-facts">
+            <div class="tp-fact"><span class="l">FOB</span><span class="v">$13.50</span></div>
+            <div class="tp-fact"><span class="l">Fabric</span><span class="v">Cotton Duck</span></div>
+            <div class="tp-fact"><span class="l">Delivery</span><span class="v"><em>15 Feb · slip 38d</em></span></div>
+            <div class="tp-fact"><span class="l">Factory</span><span class="v">Halverra · Tirupur</span></div>
+          </div>
+        </div>
+
+        <!-- Mini timeline -->
+        <div class="tp-tl-block">
+          <div class="tp-tl-l"><span>Production stage</span><span class="right">at lab dip</span></div>
+          <div class="tp-tl">
+            <div class="tp-tl-cell done"><span class="tp-tl-dot"></span></div>
+            <div class="tp-tl-cell done"><span class="tp-tl-dot"></span></div>
+            <div class="tp-tl-cell done"><span class="tp-tl-dot"></span></div>
+            <div class="tp-tl-cell blocked"><span class="tp-tl-dot"></span></div>
+            <div class="tp-tl-cell"><span class="tp-tl-dot"></span></div>
+            <div class="tp-tl-cell"><span class="tp-tl-dot"></span></div>
+            <div class="tp-tl-cell"><span class="tp-tl-dot"></span></div>
+            <div class="tp-tl-cell"><span class="tp-tl-dot"></span></div>
+            <div class="tp-tl-cell"><span class="tp-tl-dot"></span></div>
+          </div>
+          <div class="tp-tl-stages">
+            <span>tp</span><span>ct</span><span>ld</span><span>so</span><span>fs</span><span>pp</span><span>to</span><span>bk</span><span>sh</span>
+          </div>
+        </div>
+
+        <!-- Why now -->
+        <div class="tp-why">
+          <div class="tp-why-text">
+            Lab dip blocked. Brand silent <span class="kw">8 days</span>. Cutting window <span class="kw">closes tomorrow</span>.
+          </div>
+          <div class="tp-why-meta">re-ranked 09:00</div>
+        </div>
+
+        <!-- Recent threads -->
+        <div class="tp-threads">
+          <div class="l"><span>Recent on style</span><span style="font-family: 'JetBrains Mono', monospace;">14 msg</span></div>
+          <div class="tp-thread">
+            <span class="src now">W</span>
+            <span class="label">Fabric ETA pushed to 28 Jan</span>
+            <span class="ago">now</span>
+          </div>
+          <div class="tp-thread">
+            <span class="src">E</span>
+            <span class="label">Lab dip submitted to brand</span>
+            <span class="ago">8d</span>
+          </div>
+          <div class="tp-thread self">
+            <span class="src">·</span>
+            <span class="label">You forwarded lab dip pic</span>
+            <span class="ago">8d</span>
+          </div>
+          <div class="tp-thread">
+            <span class="src">E</span>
+            <span class="label">Cost FOB confirmed at $13.50</span>
+            <span class="ago">14d</span>
+          </div>
+          <div class="tp-thread">
+            <span class="src">E</span>
+            <span class="label">Tech pack v3 sent to factory</span>
+            <span class="ago">21d</span>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="tp-actions">
+          <button class="tp-action primary">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l2 4 5 1-4 4 1 5-4-2-4 2 1-5L1 6l5-1z"/></svg>
+            <span>Open full style card</span>
+          </button>
+          <button class="tp-action">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M2 4h12M2 12h12"/></svg>
+            <span>See all 14 messages</span>
+          </button>
+          <button class="tp-action">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 1.5"/></svg>
+            <span>Snooze until lab dip lands</span>
+          </button>
+          <button class="tp-action">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l3.5 3.5L13 5"/></svg>
+            <span>Mark stage complete</span>
+          </button>
+        </div>
+
+      </div>
+
+      <div class="tp-foot">
+        <span>v0.4 · office.js</span>
+        <a href="#">help</a>
+      </div>
+
+    </aside>
+
+  </div>
+</div>
+
+<!-- ════════════════ NOTES ════════════════ -->
+<div class="notes">
+  <h2>Built for the <em>actual</em> Outlook fashion uses.</h2>
+  <p class="lede">Most fashion brands and manufacturers don't run modern subscription Outlook — they run <strong>Outlook 2016 / 2019 / 2021</strong> with the classic ribbon. This add-in is built on Microsoft's Web Add-ins (Office.js), which works on every version from 2016 forward, on Windows, Mac, web, and mobile, with no client install beyond a one-time admin approval.</p>
+
+  <div class="notes-grid">
+
+    <div class="note">
+      <div class="num">01 — What's added to Outlook</div>
+      <h3>Five injection points, all sandbox-compliant.</h3>
+      <div class="row"><span class="l">Ribbon</span><span class="v"><strong>"Spindle"</strong> tab + ribbon button group on the Home tab. One click opens the task pane.</span></div>
+      <div class="row"><span class="l">Folder pane</span><span class="v"><strong>Spindle section</strong> with Today / Production board / auto-created style categories below the user's folders.</span></div>
+      <div class="row"><span class="l">Email list</span><span class="v"><strong>Inline status tags</strong> on each row (style number + stage), rendered via Outlook's category API — works on every version.</span></div>
+      <div class="row"><span class="l">Reading pane</span><span class="v"><strong>Insight strip</strong> at the top: "14th message on this style, lab dip 8 days overdue."</span></div>
+      <div class="row"><span class="l">Task pane</span><span class="v"><strong>Spindle box</strong> with 4 tabs — This style, Today, Board, Search — fitting in a ~360px sidebar.</span></div>
+    </div>
+
+    <div class="note">
+      <div class="num">02 — Why task panes (not Chrome-style overlay)</div>
+      <h3>Office.js is sandboxed for a reason.</h3>
+      <p>Outlook add-ins run in a <strong>sandboxed iframe</strong>, not as DOM-injected JavaScript. That's the limitation, and it's also the strength.</p>
+      <p>Limitation: no overlay drawer like Streak does in Gmail. The task pane is the canvas. Layout has to be vertical and compact.</p>
+      <p><strong>Strength</strong>: a sandboxed add-in <strong>doesn't break</strong> when Microsoft updates Outlook. Streak-style DOM scraping works on Gmail because Google tolerates it; Microsoft enforces the sandbox precisely so admins can approve add-ins for use across thousands of seats with confidence.</p>
+    </div>
+
+    <div class="note">
+      <div class="num">03 — How it deploys to fashion brands</div>
+      <h3>Three install paths, brand picks one.</h3>
+      <div class="row"><span class="l">AppSource</span><span class="v"><strong>Microsoft AppSource</strong> listing — public, IT-friendly, the standard. ~2-week review.</span></div>
+      <div class="row"><span class="l">Centralized deploy</span><span class="v"><strong>M365 admin centre push</strong> — IT pushes Spindle to all seats at the brand. Fastest path for larger customers.</span></div>
+      <div class="row"><span class="l">Sideload</span><span class="v">User-side install via manifest URL — for smaller brands without IT, or for trial/pilot phase.</span></div>
+      <div class="row"><span class="l">Forward fallback</span><span class="v" style="color: var(--ochre-deep); font-weight: 500;">If IT won't approve any of the above, brands forward supplier mail to a private Spindle inbox address — same backend, same style cards, no install required. Universal coverage; no customer is ever blocked.</span></div>
+    </div>
+
+    <div class="note">
+      <div class="num">04 — Honest trade-offs vs Gmail</div>
+      <h3>Worse UX, better deployability.</h3>
+      <div class="row"><span class="l v good">Gain</span><span class="v">Reaches the 60% of fashion on Microsoft 365 · cross-platform (Win/Mac/web/mobile) by default · sandboxed = won't break · IT approves once</span></div>
+      <div class="row"><span class="l v bad">Lose</span><span class="v">Less freedom than Chrome extension · narrow task pane only · can't take over email view · slower review process · Office.js learning curve</span></div>
+      <div class="row"><span class="l">Build</span><span class="v">~10–14 weeks for full Outlook + Gmail parity from one backend. Same parsing pipeline; just a second client.</span></div>
+      <div class="row"><span class="l">Risk</span><span class="v">AppSource review can be picky. Microsoft has changed Outlook UI conventions multiple times — but the API surface stays stable.</span></div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

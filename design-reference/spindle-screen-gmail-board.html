@@ -1,0 +1,2085 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spindle — Gmail extension · board view (screen)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  /* Gmail palette */
+  --g-bg:           #F6F8FC;
+  --g-surface:      #FFFFFF;
+  --g-border:       #DADCE0;
+  --g-hairline:     #E8EAED;
+  --g-text:         #202124;
+  --g-text-soft:    #5F6368;
+  --g-text-muted:   #80868B;
+  --g-blue:         #1A73E8;
+  --g-blue-soft:    #E8F0FE;
+  --g-blue-deep:    #001D35;
+  --g-yellow:       #FBBC04;
+  --g-red:          #EA4335;
+  --g-green:        #34A853;
+  --g-hover:        rgba(60, 64, 67, 0.08);
+  --g-selected:     #C2E7FF;
+  --g-search-bg:    #EAF1FB;
+  --g-compose-bg:   #C2E7FF;
+
+  /* Spindle palette */
+  --paper:          #F4EFE5;
+  --paper-deep:     #ECE5D6;
+  --surface:        #FBF8F0;
+  --surface-2:      #F8F4EA;
+  --ink:            #14110C;
+  --ink-soft:       #595142;
+  --ink-muted:      #8A8270;
+  --ink-faint:      #B6AC93;
+  --hairline:       #DDD3C0;
+  --hairline-strong:#C9BFA8;
+  --ochre:          #B07527;
+  --ochre-deep:     #8C5A1B;
+  --ochre-wash:     rgba(232, 198, 121, 0.55);
+  --ochre-soft:     rgba(176, 117, 39, 0.10);
+  --green-acc:      #5C8A4A;
+  --green-soft:     rgba(92, 138, 74, 0.10);
+  --red-acc:        #B23A3A;
+  --red-soft:       rgba(178, 58, 58, 0.10);
+  --blue-acc:       #4F6F94;
+  --blue-soft-acc:  rgba(79, 111, 148, 0.08);
+
+  --ease-out:       cubic-bezier(0.23, 1, 0.32, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--g-bg);
+  font-family: 'Roboto', -apple-system, system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--g-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+/* ════════════════ INTRO ════════════════ */
+.intro {
+  background: var(--paper);
+  border-bottom: 1px solid var(--g-border);
+  padding: 22px 32px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+.intro h1 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 28px;
+  color: var(--ink);
+  letter-spacing: -0.012em;
+  font-weight: 400;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.intro h1 em { color: var(--ochre-deep); }
+.intro .scenario { font-size: 13.5px; color: var(--ink-soft); }
+.intro .scenario strong { color: var(--ink); }
+.intro-tag {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: right;
+}
+.intro-tag .v {
+  color: var(--ochre-deep);
+  margin-top: 4px;
+  display: block;
+}
+
+/* ════════════════ GMAIL FRAME ════════════════ */
+.gmail { background: var(--g-bg); min-height: 100vh; }
+
+/* Header (same as email view) */
+.gmail-head {
+  height: 64px;
+  display: grid;
+  grid-template-columns: 256px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  background: var(--g-bg);
+  border-bottom: 1px solid var(--g-hairline);
+}
+.gmail-logo {
+  display: flex; align-items: center; gap: 8px;
+  padding-left: 8px;
+}
+.gh-menu {
+  width: 40px; height: 40px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  color: var(--g-text-soft);
+}
+.gh-menu:hover { background: var(--g-hover); }
+.gh-menu svg { width: 22px; height: 22px; }
+.lockup {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 8px;
+}
+.lockup .icon-mail {
+  width: 32px; height: 26px;
+  background:
+    linear-gradient(180deg, transparent 0 13px, white 13px 100%),
+    linear-gradient(135deg, #4285F4 0 25%, #EA4335 25% 50%, #FBBC04 50% 75%, #34A853 75% 100%);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 26'><path d='M3 0 L0 3 L0 23 Q0 26 3 26 L29 26 Q32 26 32 23 L32 3 L29 0 L16 11 Z M3 0 L29 0 L16 11 Z' fill='black'/></svg>") no-repeat center / contain;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 26'><path d='M3 0 L0 3 L0 23 Q0 26 3 26 L29 26 Q32 26 32 23 L32 3 L29 0 L16 11 Z M3 0 L29 0 L16 11 Z' fill='black'/></svg>") no-repeat center / contain;
+}
+.lockup .word {
+  font-family: 'Google Sans', 'Roboto', sans-serif;
+  font-size: 22px;
+  color: #5F6368;
+  font-weight: 400;
+}
+.gmail-search {
+  height: 48px;
+  background: var(--g-search-bg);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 14px;
+  max-width: 720px;
+  margin-right: auto;
+  width: 100%;
+  transition: background 160ms;
+}
+.gmail-search:hover, .gmail-search:focus-within {
+  background: var(--g-surface);
+  box-shadow: 0 1px 1px 0 rgba(64,60,67,0.08), 0 2px 4px 1px rgba(64,60,67,0.10);
+}
+.gmail-search svg { width: 20px; height: 20px; color: var(--g-text-soft); flex-shrink: 0; }
+.gmail-search input {
+  background: transparent; border: 0; outline: 0;
+  flex: 1; font: inherit; color: var(--g-text);
+}
+.gmail-search input::placeholder { color: var(--g-text-soft); }
+.gmail-search .opts {
+  font-size: 12px; color: var(--g-text-soft);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.04em;
+}
+.gmail-head-right {
+  display: flex; align-items: center; gap: 4px;
+  padding-right: 4px;
+}
+.gh-icon {
+  width: 40px; height: 40px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  color: var(--g-text-soft);
+}
+.gh-icon:hover { background: var(--g-hover); }
+.gh-icon svg { width: 22px; height: 22px; }
+.gh-avatar {
+  width: 32px; height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #C49449, #8C5A1B);
+  color: white;
+  display: grid; place-items: center;
+  font-size: 13.5px; font-weight: 500;
+  margin-left: 4px;
+  border: 1.5px solid white;
+}
+
+/* Body */
+.gmail-body {
+  display: grid;
+  grid-template-columns: 256px 1fr 320px;
+  height: calc(100vh - 64px - 100px);
+  min-height: 800px;
+  background: var(--g-bg);
+}
+
+/* ─── LEFT NAV (same as email view) ─── */
+.nav { padding: 8px 0 24px; overflow-y: auto; height: 100%; }
+.btn-compose {
+  display: inline-flex; align-items: center; gap: 12px;
+  height: 56px;
+  padding: 0 28px 0 16px;
+  background: var(--g-compose-bg);
+  border-radius: 16px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--g-blue-deep);
+  margin: 8px 8px 16px 8px;
+  transition: box-shadow 200ms, background 160ms;
+}
+.btn-compose:hover {
+  background: #B3DEFC;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+}
+.btn-compose svg { width: 20px; height: 20px; }
+
+.nav-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px 0 26px;
+  border-radius: 0 999px 999px 0;
+  margin-right: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #1F1F1F;
+  cursor: pointer;
+  transition: background 120ms;
+  gap: 16px;
+}
+.nav-item:hover { background: var(--g-hover); }
+.nav-item.active { background: #D3E3FD; font-weight: 700; color: var(--g-blue-deep); }
+.nav-item .ico { display: grid; place-items: center; color: #444746; }
+.nav-item.active .ico { color: var(--g-blue-deep); }
+.nav-item .ico svg { width: 18px; height: 18px; }
+.nav-item .count {
+  font-size: 12px; color: var(--g-text-muted);
+  font-weight: 400;
+}
+.nav-item.active .count { color: var(--g-blue-deep); }
+
+.nav-section {
+  padding: 16px 24px 6px;
+  display: flex; align-items: center;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--g-text-soft);
+  gap: 8px;
+}
+.nav-section .ext-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  background: var(--ochre);
+  color: var(--ink);
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.nav-section svg { width: 14px; height: 14px; color: var(--g-text-soft); margin-left: auto; }
+
+.nav-item.spindle { position: relative; }
+.nav-item.spindle::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 18px;
+  background: var(--ochre);
+  border-radius: 0 3px 3px 0;
+  opacity: 0.7;
+}
+.nav-item.spindle.active::before { opacity: 1; height: 22px; }
+.nav-item.spindle.active { background: var(--paper-deep); color: var(--ink); font-weight: 700; }
+.nav-item.spindle.active .ico { color: var(--ochre-deep); }
+.nav-item.spindle.urgent .count { color: var(--g-red); font-weight: 700; }
+
+.nav-label-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  height: 30px;
+  padding: 0 12px 0 26px;
+  border-radius: 0 999px 999px 0;
+  margin-right: 8px;
+  font-size: 13px;
+  color: var(--g-text);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.nav-label-item:hover { background: var(--g-hover); }
+.nav-label-item .swatch {
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.08);
+  position: relative;
+}
+.nav-label-item .swatch.blocked::after {
+  content: '';
+  position: absolute;
+  top: -2px; right: -2px;
+  width: 6px; height: 6px;
+  background: var(--g-red);
+  border-radius: 999px;
+  border: 1.5px solid white;
+}
+.nav-label-item .label-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+.nav-label-item .label-name strong {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--g-text-muted);
+  font-weight: 400;
+  margin-right: 5px;
+  letter-spacing: 0.04em;
+}
+.nav-label-item .count { font-size: 11px; color: var(--g-text-muted); }
+.swatch.khaki    { background: #998562; }
+.swatch.black    { background: #2A2520; }
+.swatch.ivory    { background: #E8DDC2; }
+.swatch.cream    { background: #DCCFAE; }
+.swatch.orange   { background: #C7895A; }
+.swatch.multi    { background: linear-gradient(135deg, #C97F66, #7E8F62, #6E8198); }
+.nav-show-more {
+  font-size: 13px;
+  color: var(--g-text-soft);
+  padding: 6px 26px;
+  cursor: pointer;
+}
+.nav-show-more:hover { color: var(--g-text); }
+
+/* ════════════════ MAIN AREA — PRODUCTION BOARD ════════════════ */
+.board-area {
+  background: var(--g-surface);
+  margin: 8px 16px 8px 0;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top toolbar — breadcrumb + back to inbox */
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 48px;
+  border-bottom: 1px solid var(--g-hairline);
+  gap: 12px;
+  flex-shrink: 0;
+}
+.tb-icon {
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  color: var(--g-text-soft);
+}
+.tb-icon:hover { background: var(--g-hover); color: var(--g-text); }
+.tb-icon svg { width: 18px; height: 18px; }
+.tb-divider { width: 1px; height: 20px; background: var(--g-hairline); margin: 0 4px; }
+
+.crumb {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: var(--g-text-soft);
+}
+.crumb .mark {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ochre-deep);
+  line-height: 1;
+}
+.crumb .here { color: var(--ink); font-weight: 500; }
+.crumb .sep { color: var(--ink-faint); }
+
+.tb-spacer { flex: 1; }
+.tb-meta {
+  font-size: 12px;
+  color: var(--g-text-soft);
+}
+.tb-meta strong { color: var(--g-text); font-weight: 500; }
+
+.tb-back {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  background: var(--g-hover);
+  color: var(--g-text-soft);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 160ms, color 160ms;
+}
+.tb-back:hover { background: rgba(60,64,67,0.14); color: var(--g-text); }
+.tb-back svg { width: 14px; height: 14px; }
+
+/* Stats strip (compact) */
+.board-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+.board-stats > div {
+  padding: 10px 16px;
+  border-right: 1px solid var(--hairline);
+}
+.board-stats > div:last-child { border-right: 0; }
+.board-stats .l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+.board-stats .v {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.board-stats .v.alert { color: var(--red-acc); }
+.board-stats .v small {
+  font-family: 'Geist', sans-serif;
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  margin-left: 3px;
+}
+
+/* ════════════════ FILTER SYSTEM (compact) ════════════════ */
+.fs {
+  padding: 12px 16px;
+  display: grid;
+  gap: 10px;
+  background: var(--g-surface);
+  border-bottom: 1px solid var(--g-hairline);
+  flex-shrink: 0;
+}
+
+/* Saved views row */
+.fs-views {
+  display: flex; gap: 6px; align-items: center;
+  flex-wrap: wrap;
+}
+.fs-l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-right: 4px;
+  white-space: nowrap;
+  width: 56px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.fs-views .fs-l::before {
+  content: '★';
+  font-size: 11px;
+  color: var(--ochre);
+  letter-spacing: 0;
+}
+.view-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 11px 4px 9px;
+  background: white;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 6px;
+  font-family: 'Geist', sans-serif;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 160ms, border-color 160ms;
+}
+.view-pill::before {
+  content: '★';
+  color: var(--ochre);
+  font-size: 10px;
+}
+.view-pill:hover { background: var(--surface-2); border-color: var(--ink-faint); }
+.view-pill.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.view-pill .meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+}
+.view-pill.active .meta { color: var(--ink-faint); }
+.view-pill.add::before { display: none; }
+.view-pill.add {
+  border-style: dashed;
+  background: transparent;
+  color: var(--ink-muted);
+}
+.view-pill.add:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+/* Stage rail row */
+.fs-stages {
+  display: flex; align-items: center; gap: 0;
+  padding: 8px 12px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+.stage-rail {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 0;
+  flex: 1;
+  position: relative;
+  align-items: center;
+  min-width: 540px;
+}
+.stage-rail::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(10% + 4px);
+  right: calc(10% - 4px);
+  height: 1px;
+  background: var(--hairline-strong);
+  z-index: 0;
+  transform: translateY(-50%);
+}
+.stage-cell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 4px 3px;
+  border-radius: 6px;
+  transition: background 160ms;
+}
+.stage-cell:hover { background: white; }
+.stage-cell.active { background: var(--ochre-soft); }
+.stage-cell.active .stage-dot {
+  background: var(--ochre);
+  border-color: var(--ochre);
+  box-shadow: 0 0 0 4px rgba(176,117,39,0.15);
+}
+.stage-cell.active .stage-name { color: var(--ochre-deep); font-weight: 500; }
+.stage-cell.active .stage-count { color: var(--ochre-deep); }
+.stage-dot {
+  width: 12px; height: 12px;
+  border-radius: 999px;
+  background: white;
+  border: 1.5px solid var(--hairline-strong);
+  margin-bottom: 5px;
+  transition: all 160ms;
+}
+.stage-name {
+  font-family: 'Geist', sans-serif;
+  font-size: 10px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  margin-bottom: 1px;
+  text-align: center;
+  line-height: 1.05;
+}
+.stage-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-muted);
+}
+.stage-cell.all .stage-dot { background: var(--ink); border-color: var(--ink); }
+.stage-cell.all.active .stage-dot { box-shadow: 0 0 0 4px rgba(20,17,12,0.10); }
+
+/* Combined row: status chips + facets + search */
+.fs-combined {
+  display: flex; gap: 14px; align-items: center;
+  flex-wrap: wrap;
+}
+.fs-statuses {
+  display: flex; gap: 5px; flex-wrap: wrap;
+}
+.s-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  background: white;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 160ms;
+  white-space: nowrap;
+}
+.s-chip:hover { color: var(--ink); border-color: var(--ink-faint); }
+.s-chip .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  opacity: 0.65;
+}
+.s-chip.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.s-chip.active.alert {
+  background: var(--g-red);
+  border-color: var(--g-red);
+}
+
+.fs-spacer { flex: 1; min-width: 8px; }
+
+.fs-facets {
+  display: flex; gap: 5px; flex-wrap: wrap;
+}
+.facet { position: relative; }
+.facet-trigger {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px 4px 11px;
+  background: white;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: all 160ms;
+  white-space: nowrap;
+}
+.facet-trigger:hover { color: var(--ink); border-color: var(--ink-soft); }
+.facet-trigger svg { width: 9px; height: 9px; opacity: 0.5; }
+.facet.active .facet-trigger {
+  background: var(--ochre-soft);
+  border: 1px solid var(--ochre);
+  color: var(--ochre-deep);
+  font-weight: 500;
+  padding-right: 4px;
+}
+.facet.active .facet-trigger .clear {
+  width: 14px; height: 14px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: rgba(176,117,39,0.15);
+  margin-left: 3px;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.facet.active .facet-trigger .clear:hover { background: rgba(176,117,39,0.30); }
+.facet.active .facet-trigger .clear svg { width: 7px; height: 7px; opacity: 1; }
+.facet-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink);
+  margin-left: 1px;
+}
+.facet-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 200px;
+  background: white;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px -4px rgba(20,17,12,0.15), 0 1px 3px rgba(20,17,12,0.08);
+  padding: 5px;
+  z-index: 50;
+  display: none;
+}
+.facet.open .facet-menu { display: block; }
+.facet-menu .menu-l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 9px 4px;
+}
+.facet-menu button {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 12.5px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.facet-menu button:hover { background: var(--surface-2); }
+.facet-menu button.selected { background: var(--ochre-soft); color: var(--ochre-deep); font-weight: 500; }
+.facet-menu .check {
+  display: inline-block;
+  width: 10px; height: 10px;
+  font-size: 10px;
+  color: var(--ochre);
+  visibility: hidden;
+}
+.facet-menu button.selected .check { visibility: visible; }
+.facet-menu .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+.search {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: white;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  width: 180px;
+  transition: border-color 160ms;
+}
+.search:focus-within { border-color: var(--ink-faint); }
+.search svg { width: 11px; height: 11px; flex-shrink: 0; }
+.search input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  flex: 1;
+  font: inherit;
+  color: var(--ink);
+  min-width: 0;
+}
+.search input::placeholder { color: var(--ink-muted); }
+
+/* Result counter strip — shown above the table */
+.fs-result {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 16px;
+  background: var(--paper-deep);
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.fs-result .count-text {
+  display: inline-flex; align-items: baseline; gap: 6px;
+}
+.fs-result .count-num {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.fs-result .count-of { color: var(--ink-muted); font-size: 10.5px; }
+.fs-result .actions { display: flex; gap: 12px; }
+.fs-result button {
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-soft);
+  transition: color 160ms;
+}
+.fs-result .reset { color: var(--ochre-deep); }
+.fs-result .reset:hover { color: var(--ochre); }
+.fs-result .save-current:hover { color: var(--ink); }
+
+/* ════════════════ TABLE ════════════════ */
+.tbl-wrap {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--g-surface);
+}
+.tbl-head {
+  display: grid;
+  grid-template-columns: 36px minmax(180px, 1.6fr) minmax(100px, 0.8fr) 180px minmax(90px, 0.8fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 18px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.tbl-head .stages {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+  text-align: center;
+}
+.tbl-head .stages span {
+  font-size: 9px;
+  color: var(--ink-muted);
+}
+
+.tbl-row {
+  display: grid;
+  grid-template-columns: 36px minmax(180px, 1.6fr) minmax(100px, 0.8fr) 180px minmax(90px, 0.8fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  transition: background 160ms;
+}
+.tbl-row:hover { background: var(--surface); }
+.tbl-row.filter-hidden { display: none; }
+
+.thumb {
+  width: 30px;
+  height: 36px;
+  border-radius: 4px;
+  display: grid; place-items: center;
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+.thumb svg { width: 100%; height: 100%; }
+.thumb svg .silhouette {
+  fill: rgba(255,255,255,0.85);
+  stroke: rgba(20,17,12,0.4);
+  stroke-width: 0.6;
+}
+.thumb.khaki    { background: #998562; background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.08) 0 1px, transparent 1px 4px); }
+.thumb.ivory    { background: #E8DDC2; }
+.thumb.cream    { background: #DCCFAE; }
+.thumb.black    { background: #2A2520; }
+.thumb.green    { background: #7E8F62; }
+.thumb.multi    { background: linear-gradient(135deg, #C97F66, #7E8F62, #6E8198); }
+.thumb.orange   { background: #C7895A; }
+.thumb.brown    { background: #7A5A3F; }
+.thumb.white    { background: #EFE9DA; background-image: repeating-linear-gradient(135deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 5px); }
+.thumb.pink     { background: #D8A5A1; }
+.thumb.black svg .silhouette { fill: rgba(255,255,255,0.7); stroke: rgba(255,255,255,0.5); }
+
+.cell-name { min-width: 0; }
+.cell-name .style-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+.cell-name .name {
+  font-size: 12.5px;
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.2;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cell-name .why {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cell-comm {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  color: var(--ink-soft);
+}
+.cell-comm .qty { color: var(--ink); font-weight: 500; }
+.cell-comm .val {
+  display: block;
+  margin-top: 2px;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+}
+
+/* Mini timeline per row */
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+  align-items: center;
+  position: relative;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 5px; right: 5px;
+  height: 1px;
+  background: var(--hairline);
+  z-index: 0;
+}
+.tl-cell {
+  position: relative;
+  z-index: 1;
+  display: grid; place-items: center;
+}
+.tl-dot {
+  width: 10px; height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1.3px solid var(--hairline-strong);
+  transition: transform 200ms;
+}
+.tl-cell.done .tl-dot     { background: var(--green-acc); border-color: var(--green-acc); }
+.tl-cell.now .tl-dot      { background: var(--ochre); border-color: var(--ochre); box-shadow: 0 0 0 3px var(--ochre-soft); animation: pulse 2.4s var(--ease-out) infinite; }
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 3px var(--ochre-soft); }
+  50%     { box-shadow: 0 0 0 5px rgba(176, 117, 39, 0.04); }
+}
+.tl-cell.blocked .tl-dot  { background: var(--red-acc); border-color: var(--red-acc); box-shadow: 0 0 0 3px var(--red-soft); }
+.tl-cell.shipped .tl-dot  { background: var(--blue-acc); border-color: var(--blue-acc); }
+.tl-cell.cancelled .tl-dot {
+  background: var(--ink-faint);
+  border-color: var(--ink-faint);
+  position: relative;
+}
+.tl-cell.cancelled .tl-dot::after {
+  content: '';
+  position: absolute; top: 50%; left: -2px; right: -2px;
+  height: 1.5px; background: var(--red-acc);
+  transform: rotate(-12deg);
+}
+
+.cell-del {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.cell-del .date { color: var(--ink); font-weight: 500; }
+.cell-del .meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.cell-del .meta.urgent { color: var(--red-acc); }
+.cell-del .meta.warn   { color: var(--ochre-deep); }
+.cell-del .meta.good   { color: var(--green-acc); }
+.cell-del .meta.dead   { color: var(--ink-muted); text-decoration: line-through; }
+
+.status {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.status .dot { width: 4px; height: 4px; border-radius: 999px; background: currentColor; }
+.status.blocked   { background: var(--red-soft); color: var(--red-acc); }
+.status.waiting   { background: var(--ochre-soft); color: var(--ochre-deep); }
+.status.ontrack   { background: var(--green-soft); color: var(--green-acc); }
+.status.shipped   { background: var(--blue-soft-acc); color: var(--blue-acc); }
+.status.cancelled { background: rgba(20,17,12,0.06); color: var(--ink-muted); }
+
+/* Empty state */
+.tbl-empty {
+  display: none;
+  padding: 60px 24px;
+  text-align: center;
+}
+.tbl-empty.show { display: block; }
+.tbl-empty .em-mark {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 32px;
+  color: var(--ochre-deep);
+  margin-bottom: 8px;
+}
+.tbl-empty .em-text {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+  max-width: 40ch;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+.tbl-empty .em-cta {
+  display: inline-block;
+  padding: 7px 14px;
+  border-radius: 7px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 160ms;
+}
+.tbl-empty .em-cta:hover { background: #28221A; }
+
+/* ════════════════ RIGHT SIDEBAR — TODAY (compact) ════════════════ */
+.today-side {
+  background: var(--paper);
+  border-radius: 16px;
+  margin: 8px 8px 8px 0;
+  overflow-y: auto;
+  border: 1px solid var(--hairline);
+  position: relative;
+}
+.today-side::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: 0.32;
+  mix-blend-mode: multiply;
+  border-radius: 16px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.078  0 0 0 0 0.067  0 0 0 0 0.047  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+.today-side > * { position: relative; z-index: 1; }
+
+.today-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.today-head .ss-brand {
+  display: inline-flex; align-items: baseline; gap: 4px;
+}
+.today-head .mark {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1;
+}
+.today-head .mark::after {
+  content: '';
+  display: inline-block;
+  width: 4px; height: 4px;
+  margin-left: 1px;
+  border-radius: 999px;
+  background: var(--ochre);
+  transform: translateY(-2px);
+}
+.today-head .sublabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-left: 6px;
+}
+.today-head .live-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  background: var(--ochre);
+  color: var(--ink);
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.today-head .live-pill::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: var(--ink);
+  animation: breathe 1.8s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100% { opacity: 0.5 } 50% { opacity: 1 } }
+
+.today-intro {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.today-intro .l {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ochre-deep);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.today-intro .h {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+}
+
+.today-card {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  transition: background 160ms;
+}
+.today-card:hover { background: var(--surface); }
+.today-card:last-child { border-bottom: 0; }
+.today-card .num {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  color: var(--ochre-deep);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.today-card .why {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink);
+  margin-bottom: 8px;
+  letter-spacing: -0.003em;
+}
+.today-card .why .kw {
+  background: var(--ochre-wash);
+  font-style: normal;
+  font-family: 'Geist', sans-serif;
+  font-size: 11.5px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: 500;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.today-card .meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex; gap: 10px;
+  flex-wrap: wrap;
+}
+.today-card .meta strong { color: var(--ink); font-weight: 500; }
+
+@media (max-width: 1280px) {
+  .gmail-body { grid-template-columns: 220px 1fr 280px; }
+  .gmail-head { grid-template-columns: 220px 1fr auto; }
+}
+@media (max-width: 1080px) {
+  .gmail-body { grid-template-columns: 64px 1fr; }
+  .nav-item, .nav-label-item, .btn-compose, .nav-section { display: none; }
+  .today-side { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="gmail">
+
+  <!-- HEADER -->
+  <div class="gmail-head">
+    <div class="gmail-logo">
+      <button class="gh-menu" aria-label="menu">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+      </button>
+      <div class="lockup">
+        <div class="icon-mail"></div>
+        <div class="word">Gmail</div>
+      </div>
+    </div>
+    <div class="gmail-search">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input type="text" value="Search mail" readonly>
+      <span class="opts">spindle:lab-dip</span>
+    </div>
+    <div class="gmail-head-right">
+      <button class="gh-icon" aria-label="apps"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+      <div class="gh-avatar">RK</div>
+    </div>
+  </div>
+
+  <div class="gmail-body">
+
+    <!-- LEFT NAV -->
+    <nav class="nav">
+      <button class="btn-compose">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        Compose
+      </button>
+
+      <div class="nav-item">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 5v9h-4v3H9v-3H5V5h14m1.4-2H3.6c-.33 0-.6.27-.6.6v12.8c0 .33.27.6.6.6H9v3h6v-3h5.4c.33 0 .6-.27.6-.6V3.6c0-.33-.27-.6-.6-.6z"/></svg></span>
+        <span>Inbox</span>
+        <span class="count">412</span>
+      </div>
+      <div class="nav-item">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></span>
+        <span>Starred</span>
+      </div>
+      <div class="nav-item">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></span>
+        <span>Sent</span>
+      </div>
+      <div class="nav-item">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 8l9 6 9-6v10H3V8m0-2h18l-9 6-9-6z"/></svg></span>
+        <span>Drafts</span>
+        <span class="count">2</span>
+      </div>
+
+      <!-- Spindle section — Production board is active -->
+      <div class="nav-section">
+        Spindle
+        <span class="ext-badge">ext</span>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+      </div>
+
+      <div class="nav-item spindle urgent">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2"/></svg></span>
+        <span>Today</span>
+        <span class="count">5</span>
+      </div>
+      <div class="nav-item spindle active">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z"/></svg></span>
+        <span>Production board</span>
+        <span class="count">247</span>
+      </div>
+      <div class="nav-item spindle">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7v10c0 2 2 2 2 2h14s2 0 2-2V7c0-2-2-2-2-2H5S3 5 3 7zm2 0h14v10H5V7z"/></svg></span>
+        <span>Stale but live</span>
+        <span class="count">11</span>
+      </div>
+
+      <div class="nav-section" style="font-size: 11px; padding-top: 12px; padding-bottom: 4px;">
+        <span style="font-weight: 400;">Style labels</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--ink-muted); margin-left: auto; margin-right: 8px; letter-spacing: 0.04em;">auto · 18</span>
+      </div>
+
+      <div class="nav-label-item">
+        <span class="swatch khaki blocked"></span>
+        <span class="label-name"><strong>6601234</strong>Jasmine Emb Jacket</span>
+        <span class="count">14</span>
+      </div>
+      <div class="nav-label-item">
+        <span class="swatch black"></span>
+        <span class="label-name"><strong>6601258</strong>Tiered LS Maxi Dress</span>
+        <span class="count">6</span>
+      </div>
+      <div class="nav-label-item">
+        <span class="swatch ivory"></span>
+        <span class="label-name"><strong>5501465</strong>Sun Embd Dress</span>
+        <span class="count">11</span>
+      </div>
+      <div class="nav-label-item">
+        <span class="swatch orange"></span>
+        <span class="label-name"><strong>7001770</strong>Kamila Cami</span>
+        <span class="count">8</span>
+      </div>
+      <div class="nav-label-item">
+        <span class="swatch multi"></span>
+        <span class="label-name"><strong>5401612</strong>Animal Print Dress</span>
+        <span class="count">4</span>
+      </div>
+      <div class="nav-label-item">
+        <span class="swatch cream"></span>
+        <span class="label-name"><strong>SL000040</strong>Frost Satin Skirt</span>
+        <span class="count">3</span>
+      </div>
+      <div class="nav-show-more">More (12 styles)</div>
+    </nav>
+
+    <!-- MAIN: BOARD VIEW -->
+    <div class="board-area">
+
+      <!-- Toolbar -->
+      <div class="board-toolbar">
+        <button class="tb-icon" aria-label="back"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+        <span class="tb-divider"></span>
+        <div class="crumb">
+          <span class="mark">Spindle</span>
+          <span class="sep">/</span>
+          <span class="here">Production board</span>
+        </div>
+        <span class="tb-spacer"></span>
+        <span class="tb-meta">Updated <strong>just now</strong> · re-ranked 09:00</span>
+        <button class="tb-back">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 5v9h-4v3H9v-3H5V5h14m1.4-2H3.6c-.33 0-.6.27-.6.6v12.8c0 .33.27.6.6.6H9v3h6v-3h5.4c.33 0 .6-.27.6-.6V3.6c0-.33-.27-.6-.6-.6z"/></svg>
+          Back to inbox
+        </button>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="board-stats">
+        <div><div class="l">Active</div><div class="v">247</div></div>
+        <div><div class="l">Total value</div><div class="v">£2.4M</div></div>
+        <div><div class="l">Blocked</div><div class="v alert">12</div></div>
+        <div><div class="l">≤ 7 days</div><div class="v">8</div></div>
+        <div><div class="l">Need you</div><div class="v alert">5</div></div>
+      </div>
+
+      <!-- FILTERS -->
+      <div class="fs">
+
+        <!-- Saved views -->
+        <div class="fs-views">
+          <span class="fs-l">Views</span>
+          <button class="view-pill active" data-view="monday">My Monday <span class="meta">(8)</span></button>
+          <button class="view-pill" data-view="poppi-feb">POPPI · Feb <span class="meta">(6)</span></button>
+          <button class="view-pill" data-view="lab-dip">Lab dip approvals <span class="meta">(18)</span></button>
+          <button class="view-pill" data-view="blocked-7">Blocked ≥ 7d <span class="meta">(9)</span></button>
+          <button class="view-pill" data-view="this-week">Shipping ≤ 7d <span class="meta">(8)</span></button>
+          <button class="view-pill add">+ Save</button>
+        </div>
+
+        <!-- Stage rail -->
+        <div class="fs-stages">
+          <div class="stage-rail">
+            <div class="stage-cell all active" data-filter-stage="all">
+              <span class="stage-dot"></span>
+              <span class="stage-name">All stages</span>
+              <span class="stage-count">247</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="tp">
+              <span class="stage-dot"></span>
+              <span class="stage-name">Tech pack</span>
+              <span class="stage-count">14</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="ct">
+              <span class="stage-dot"></span>
+              <span class="stage-name">Costing</span>
+              <span class="stage-count">23</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="ld">
+              <span class="stage-dot"></span>
+              <span class="stage-name">Lab dip</span>
+              <span class="stage-count">18</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="so">
+              <span class="stage-dot"></span>
+              <span class="stage-name">Strike-off</span>
+              <span class="stage-count">11</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="fs">
+              <span class="stage-dot"></span>
+              <span class="stage-name">Fit</span>
+              <span class="stage-count">29</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="pp">
+              <span class="stage-dot"></span>
+              <span class="stage-name">PP</span>
+              <span class="stage-count">17</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="to">
+              <span class="stage-dot"></span>
+              <span class="stage-name">TOP</span>
+              <span class="stage-count">22</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="bk">
+              <span class="stage-dot"></span>
+              <span class="stage-name">Bulk</span>
+              <span class="stage-count">31</span>
+            </div>
+            <div class="stage-cell" data-filter-stage="sh">
+              <span class="stage-dot"></span>
+              <span class="stage-name">Ship</span>
+              <span class="stage-count">82</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Combined: status + facets + search -->
+        <div class="fs-combined">
+          <div class="fs-statuses">
+            <button class="s-chip active" data-filter-status="all">All <span class="count">247</span></button>
+            <button class="s-chip alert" data-filter-status="attention">Attention <span class="count">5</span></button>
+            <button class="s-chip" data-filter-status="blocked">Blocked <span class="count">12</span></button>
+            <button class="s-chip" data-filter-status="waiting">Waiting <span class="count">38</span></button>
+            <button class="s-chip" data-filter-status="ontrack">On track <span class="count">134</span></button>
+          </div>
+
+          <span class="fs-spacer"></span>
+
+          <div class="fs-facets">
+            <div class="facet" data-facet="brand">
+              <button class="facet-trigger">+ Brand <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg></button>
+              <div class="facet-menu">
+                <div class="menu-l">Filter by brand</div>
+                <button data-value="poppi"><span class="check">✓</span><span>POPPI</span><span class="count">37</span></button>
+                <button data-value="forest-fern"><span class="check">✓</span><span>FOREST FERN</span><span class="count">52</span></button>
+                <button data-value="marlowe-lane"><span class="check">✓</span><span>MARLOWE LANE</span><span class="count">14</span></button>
+                <button data-value="viva-global"><span class="check">✓</span><span>VIVA GLOBAL</span><span class="count">28</span></button>
+                <button data-value="aurora-house"><span class="check">✓</span><span>AURORA HOUSE</span><span class="count">19</span></button>
+                <button data-value="meridian"><span class="check">✓</span><span>MERIDIAN</span><span class="count">11</span></button>
+                <button data-value="pavilion"><span class="check">✓</span><span>PAVILION</span><span class="count">22</span></button>
+                <button data-value="halo-kids"><span class="check">✓</span><span>HALO KIDS</span><span class="count">31</span></button>
+              </div>
+            </div>
+
+            <div class="facet" data-facet="season">
+              <button class="facet-trigger">+ Season <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg></button>
+              <div class="facet-menu">
+                <div class="menu-l">Filter by season</div>
+                <button data-value="aw25"><span class="check">✓</span><span>AW25</span><span class="count">82</span></button>
+                <button data-value="ss25"><span class="check">✓</span><span>SS25</span><span class="count">96</span></button>
+                <button data-value="ml25"><span class="check">✓</span><span>ML25 (Marlowe)</span><span class="count">14</span></button>
+                <button data-value="resort26"><span class="check">✓</span><span>Resort 26</span><span class="count">31</span></button>
+              </div>
+            </div>
+
+            <div class="facet" data-facet="time">
+              <button class="facet-trigger">+ Delivery <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg></button>
+              <div class="facet-menu">
+                <div class="menu-l">Delivery window</div>
+                <button data-value="overdue"><span class="check">✓</span><span>Overdue</span><span class="count">7</span></button>
+                <button data-value="7d"><span class="check">✓</span><span>This week</span><span class="count">8</span></button>
+                <button data-value="30d"><span class="check">✓</span><span>This month</span><span class="count">47</span></button>
+                <button data-value="60d"><span class="check">✓</span><span>≤ 60 days</span><span class="count">98</span></button>
+                <button data-value="quarter"><span class="check">✓</span><span>This quarter</span><span class="count">142</span></button>
+              </div>
+            </div>
+
+            <div class="facet" data-facet="factory">
+              <button class="facet-trigger">+ Factory <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg></button>
+              <div class="facet-menu">
+                <div class="menu-l">Filter by factory</div>
+                <button data-value="halverra"><span class="check">✓</span><span>Halverra · Tirupur</span><span class="count">94</span></button>
+                <button data-value="jaipur-1"><span class="check">✓</span><span>Jaipur Block #1</span><span class="count">61</span></button>
+                <button data-value="palam"><span class="check">✓</span><span>Palam Group</span><span class="count">38</span></button>
+                <button data-value="circa"><span class="check">✓</span><span>Circa BB</span><span class="count">17</span></button>
+              </div>
+            </div>
+          </div>
+
+          <span class="search">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="m11 11 3 3"/></svg>
+            <input type="search" id="filterSearch" placeholder="Search styles…" autocomplete="off">
+          </span>
+        </div>
+
+      </div>
+
+      <!-- Result counter -->
+      <div class="fs-result">
+        <span class="count-text">
+          <span class="count-num" id="visibleCount">12</span>
+          <span class="count-of">of 247 · "My Monday morning"</span>
+        </span>
+        <div class="actions">
+          <button class="save-current">Save current</button>
+          <button class="reset" id="resetFilters">Reset filters</button>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="tbl-wrap">
+
+        <div class="tbl-head">
+          <span></span>
+          <span>Style</span>
+          <span>Qty / Value</span>
+          <div class="stages">
+            <span>TP</span><span>Ct</span><span>Ld</span><span>So</span><span>Fs</span><span>Pp</span><span>To</span><span>Bk</span><span>Sh</span>
+          </div>
+          <span>Delivery</span>
+          <span>Status</span>
+        </div>
+
+        <!-- Reusable garment silhouettes -->
+        <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+          <defs>
+            <symbol id="g-jacket" viewBox="0 0 36 44">
+              <path class="silhouette" d="M 10 6 L 16 4 Q 18 3.5 20 4 L 26 6 L 31 11 L 31 30 L 27 30 L 27 13 L 25 12 L 25 36 L 11 36 L 11 12 L 9 13 L 9 30 L 5 30 L 5 11 Z"/>
+            </symbol>
+            <symbol id="g-dress" viewBox="0 0 36 44">
+              <path class="silhouette" d="M 12 6 L 16 4 Q 18 3.5 20 4 L 24 6 L 26 12 L 30 38 L 6 38 L 10 12 Z"/>
+            </symbol>
+            <symbol id="g-top" viewBox="0 0 36 44">
+              <path class="silhouette" d="M 11 8 L 16 6 Q 18 5.5 20 6 L 25 8 L 30 12 L 30 24 L 26 24 L 26 14 L 25 13 L 25 30 L 11 30 L 11 13 L 10 14 L 10 24 L 6 24 L 6 12 Z"/>
+            </symbol>
+            <symbol id="g-trouser" viewBox="0 0 36 44">
+              <path class="silhouette" d="M 10 6 L 26 6 L 27 14 L 22 38 L 19 38 L 18 18 L 17 18 L 16 38 L 13 38 L 9 14 Z"/>
+            </symbol>
+            <symbol id="g-skirt" viewBox="0 0 36 44">
+              <path class="silhouette" d="M 12 12 L 24 12 L 28 36 L 8 36 Z"/>
+            </symbol>
+          </defs>
+        </svg>
+
+        <!-- ROWS — 12 styles, varied -->
+
+        <div class="tbl-row" data-status="blocked" data-stage="ld" data-brand="poppi" data-season="aw25" data-time="30d" data-factory="halverra" data-age="8">
+          <div class="thumb khaki"><svg><use href="#g-jacket"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">6601234 · POPPI</div>
+            <div class="name">Jasmine Emb Jacket</div>
+            <div class="why">Lab dip pending 8 days; cutting window closes tomorrow.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">600</span><span class="val">£8,100</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell blocked"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">15 Feb</span><span class="meta urgent">slipping · 38d</span></div>
+          <span class="status blocked"><span class="dot"></span>Blocked</span>
+        </div>
+
+        <div class="tbl-row" data-status="cancelled" data-stage="so" data-brand="marlowe-lane" data-season="ml25" data-time="30d" data-factory="jaipur-1" data-age="0">
+          <div class="thumb cream"><svg><use href="#g-skirt"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">SL000040 · MARLOWE LANE</div>
+            <div class="name">Frost Satin Skirt</div>
+            <div class="why">Brand pulling fabric; £4,200 liability — needs reply today.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">cancelled</span><span class="val">£4,200 liability</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell cancelled"><span class="tl-dot"></span></div>
+            <div class="tl-cell cancelled"><span class="tl-dot"></span></div>
+            <div class="tl-cell cancelled"><span class="tl-dot"></span></div>
+            <div class="tl-cell cancelled"><span class="tl-dot"></span></div>
+            <div class="tl-cell cancelled"><span class="tl-dot"></span></div>
+            <div class="tl-cell cancelled"><span class="tl-dot"></span></div>
+            <div class="tl-cell cancelled"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">20 Feb</span><span class="meta dead">cancelled</span></div>
+          <span class="status cancelled"><span class="dot"></span>Cancelled</span>
+        </div>
+
+        <div class="tbl-row" data-status="waiting" data-stage="ct" data-brand="poppi" data-season="aw25" data-time="7d" data-factory="halverra" data-age="11">
+          <div class="thumb black"><svg><use href="#g-dress"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">6601258 · POPPI</div>
+            <div class="name">Tiered LS Maxi Dress</div>
+            <div class="why">FOB countersign 11 days late; loom slot at risk.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">650</span><span class="val">£13,325</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">06 Jan</span><span class="meta warn">at risk · 4d</span></div>
+          <span class="status waiting"><span class="dot"></span>Waiting</span>
+        </div>
+
+        <div class="tbl-row" data-status="waiting" data-stage="to" data-brand="forest-fern" data-season="ss25" data-time="7d" data-factory="jaipur-1" data-age="0">
+          <div class="thumb ivory"><svg><use href="#g-dress"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">5501465 · FOREST FERN</div>
+            <div class="name">Sun All Over Embd Dress</div>
+            <div class="why">PP approved 4 Jan; 48h SLA to confirm fabric runs out tomorrow.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">1,760</span><span class="val">£25,520</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">15 Jan</span><span class="meta warn">tight · 7d</span></div>
+          <span class="status waiting"><span class="dot"></span>Waiting</span>
+        </div>
+
+        <div class="tbl-row" data-status="ontrack" data-stage="fs" data-brand="forest-fern" data-season="ss25" data-time="60d" data-factory="circa" data-age="0">
+          <div class="thumb white"><svg><use href="#g-trouser"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">799617 · FOREST FERN</div>
+            <div class="name">Crinkle Beach Trouser</div>
+            <div class="why">Cutting in progress; fit sample due 14 Jan, on schedule.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">1,000</span><span class="val">£7,600</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">01 Mar</span><span class="meta good">on track · 53d</span></div>
+          <span class="status ontrack"><span class="dot"></span>On track</span>
+        </div>
+
+        <div class="tbl-row" data-status="ontrack" data-stage="bk" data-brand="pavilion" data-season="ss25" data-time="7d" data-factory="jaipur-1" data-age="0">
+          <div class="thumb orange"><svg><use href="#g-top"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">7001770 · PAVILION</div>
+            <div class="name">Kamila Cami</div>
+            <div class="why">Cut and stitch on track; BL drafting now, ships 14 Jan.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">1,400</span><span class="val">£10,920</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">14 Jan</span><span class="meta good">on time · 6d</span></div>
+          <span class="status ontrack"><span class="dot"></span>On track</span>
+        </div>
+
+        <div class="tbl-row" data-status="shipped" data-stage="sh" data-brand="halo-kids" data-season="ss25" data-time="30d" data-factory="palam" data-age="0">
+          <div class="thumb multi"><svg><use href="#g-dress"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">5401612 · HALO KIDS</div>
+            <div class="name">Animal Print Dress</div>
+            <div class="why">BL issued 5 Jan; Felixstowe ETA 22 Jan, all clear.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">1,000</span><span class="val">£5,450</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell shipped"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">22 Jan</span><span class="meta good">on water</span></div>
+          <span class="status shipped"><span class="dot"></span>Shipped</span>
+        </div>
+
+        <div class="tbl-row" data-status="ontrack" data-stage="ld" data-brand="forest-fern" data-season="aw25" data-time="60d" data-factory="halverra" data-age="0">
+          <div class="thumb white"><svg><use href="#g-top"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">6501110 · FOREST FERN</div>
+            <div class="name">Lace Shirt</div>
+            <div class="why">Lab dip out 14 Jan; sample due 21 Jan; on schedule.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">1,100</span><span class="val">£9,295</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">22 Feb</span><span class="meta good">on track · 45d</span></div>
+          <span class="status ontrack"><span class="dot"></span>On track</span>
+        </div>
+
+        <div class="tbl-row" data-status="waiting" data-stage="fs" data-brand="aurora-house" data-season="aw25" data-time="overdue" data-factory="palam" data-age="14">
+          <div class="thumb green"><svg><use href="#g-top"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">AH6601 · AURORA HOUSE</div>
+            <div class="name">Vinnie Top</div>
+            <div class="why">Fit submitted 28 Dec; brand reviewing, no movement 14 days.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">100</span><span class="val">£1,985</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">25 Dec</span><span class="meta urgent">overdue · -14d</span></div>
+          <span class="status waiting"><span class="dot"></span>Waiting</span>
+        </div>
+
+        <div class="tbl-row" data-status="ontrack" data-stage="ld" data-brand="halo-kids" data-season="aw25" data-time="60d" data-factory="palam" data-age="0">
+          <div class="thumb pink"><svg><use href="#g-dress"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">6601420 · HALO KIDS</div>
+            <div class="name">Marigold Print Long Dress</div>
+            <div class="why">Lab dip submitted; awaiting brand colour approval.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">600</span><span class="val">£7,650</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">27 Feb</span><span class="meta good">early · 50d</span></div>
+          <span class="status ontrack"><span class="dot"></span>On track</span>
+        </div>
+
+        <div class="tbl-row" data-status="waiting" data-stage="bk" data-brand="meridian" data-season="ss25" data-time="30d" data-factory="halverra" data-age="6">
+          <div class="thumb green"><svg><use href="#g-dress"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">82034501 · MERIDIAN</div>
+            <div class="name">Dept 536 Dress</div>
+            <div class="why">Payment terms confirmation pending 6 days; BL date creeping.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">600</span><span class="val">£12,570</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">22 Jan</span><span class="meta warn">terms hold · 14d</span></div>
+          <span class="status waiting"><span class="dot"></span>Waiting</span>
+        </div>
+
+        <div class="tbl-row" data-status="ontrack" data-stage="to" data-brand="poppi" data-season="aw25" data-time="30d" data-factory="halverra" data-age="0">
+          <div class="thumb black"><svg><use href="#g-dress"/></svg></div>
+          <div class="cell-name">
+            <div class="style-num">6601076 · POPPI</div>
+            <div class="name">Gingham Long Sleeve Maxi</div>
+            <div class="why">PP sample approved; bulk fabric arriving Tirupur 18 Jan.</div>
+          </div>
+          <div class="cell-comm"><span class="qty">700</span><span class="val">£9,625</span></div>
+          <div class="timeline">
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell done"><span class="tl-dot"></span></div>
+            <div class="tl-cell now"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+            <div class="tl-cell"><span class="tl-dot"></span></div>
+          </div>
+          <div class="cell-del"><span class="date">06 Feb</span><span class="meta good">on track · 29d</span></div>
+          <span class="status ontrack"><span class="dot"></span>On track</span>
+        </div>
+
+        <div class="tbl-empty" id="tblEmpty">
+          <div class="em-mark">No styles match.</div>
+          <div class="em-text">Try removing a filter, or reset to "My Monday morning" to start over.</div>
+          <button class="em-cta" id="emptyReset">Reset filters</button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- RIGHT SIDEBAR — TODAY (compact) -->
+    <aside class="today-side">
+
+      <div class="today-head">
+        <div class="ss-brand">
+          <span class="mark">Spindle</span>
+          <span class="sublabel">today</span>
+        </div>
+        <span class="live-pill">live · 5</span>
+      </div>
+
+      <div class="today-intro">
+        <div class="l">↳ While you scan</div>
+        <div class="h">Five things, ranked by what's <em style="font-style: italic; color: var(--ochre-deep);">actually</em> blocking production.</div>
+      </div>
+
+      <div class="today-card">
+        <div class="num">01</div>
+        <div class="why">
+          Lab dip <span class="kw">8 days overdue</span> on Jasmine Emb Jacket — cutting window closes <span class="kw">tomorrow</span>.
+        </div>
+        <div class="meta">
+          <span><strong>6601234</strong> · POPPI</span>
+          <span>blocked</span>
+        </div>
+      </div>
+
+      <div class="today-card">
+        <div class="num">02</div>
+        <div class="why">
+          Iris emailed <span class="kw">23 days ago</span> on Frost Satin cancellation — she's about to invoice <span class="kw">£4,200 fabric</span>.
+        </div>
+        <div class="meta">
+          <span><strong>SL000040</strong> · MARLOWE LANE</span>
+          <span>no reply 23d</span>
+        </div>
+      </div>
+
+      <div class="today-card">
+        <div class="num">03</div>
+        <div class="why">
+          PP approved on <span class="kw">5501465</span> — 48h SLA on fabric confirmation runs out <span class="kw">tomorrow</span>.
+        </div>
+        <div class="meta">
+          <span><strong>5501465</strong> · FOREST FERN</span>
+          <span>SLA window</span>
+        </div>
+      </div>
+
+      <div class="today-card">
+        <div class="num">04</div>
+        <div class="why">
+          MERIDIAN payment-terms hold approaching <span class="kw">7 days</span> — BL date 22 Jan at risk.
+        </div>
+        <div class="meta">
+          <span><strong>82034501</strong> · MERIDIAN</span>
+          <span>terms hold</span>
+        </div>
+      </div>
+
+      <div class="today-card">
+        <div class="num">05</div>
+        <div class="why">
+          AURORA fit comments awaited <span class="kw">14 days</span> on Vinnie Top — sample sitting idle.
+        </div>
+        <div class="meta">
+          <span><strong>AH6601</strong> · AURORA HOUSE</span>
+          <span>14 day silence</span>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const rows = Array.from(document.querySelectorAll('.tbl-row'));
+  const empty = document.getElementById('tblEmpty');
+  const visibleCountEl = document.getElementById('visibleCount');
+  const totalRows = rows.length;
+
+  const SAVED_VIEWS = {
+    'monday':    { label: 'My Monday morning',    status: 'all',     stage: 'all', brand: null, season: null, time: null, factory: null, search: '' },
+    'poppi-feb': { label: 'POPPI · shipping Feb', status: 'all',     stage: 'all', brand: 'poppi', season: null, time: '30d', factory: null, search: '' },
+    'lab-dip':   { label: 'Lab dip approvals',    status: 'all',     stage: 'ld',  brand: null, season: null, time: null, factory: null, search: '' },
+    'blocked-7': { label: 'Blocked ≥ 7 days',     status: 'blocked', stage: 'all', brand: null, season: null, time: null, factory: null, search: '', minAge: 7 },
+    'this-week': { label: 'Shipping this week',   status: 'all',     stage: 'all', brand: null, season: null, time: '7d', factory: null, search: '' },
+  };
+
+  let state = {
+    status: 'all', stage: 'all', brand: null, season: null,
+    time: null, factory: null, search: '', minAge: 0,
+    activeView: 'monday',
+  };
+
+  function applyFilters() {
+    let visible = 0;
+    rows.forEach(row => {
+      const d = row.dataset;
+      const matches =
+        (state.status === 'all' || d.status === state.status) &&
+        (state.stage === 'all' || d.stage === state.stage) &&
+        (!state.brand   || d.brand   === state.brand) &&
+        (!state.season  || d.season  === state.season) &&
+        (!state.time    || d.time    === state.time) &&
+        (!state.factory || d.factory === state.factory) &&
+        (!state.search  || row.textContent.toLowerCase().includes(state.search.toLowerCase())) &&
+        (!state.minAge  || parseInt(d.age || 0) >= state.minAge);
+
+      row.classList.toggle('filter-hidden', !matches);
+      if (matches) visible++;
+    });
+
+    empty.classList.toggle('show', visible === 0);
+    visibleCountEl.textContent = visible;
+
+    const ofText = document.querySelector('.fs-result .count-of');
+    if (state.activeView && SAVED_VIEWS[state.activeView]) {
+      ofText.textContent = `of ${totalRows} · "${SAVED_VIEWS[state.activeView].label}"`;
+    } else {
+      ofText.textContent = `of ${totalRows} · custom filter`;
+    }
+  }
+
+  function syncUI() {
+    document.querySelectorAll('.s-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.filterStatus === state.status);
+    });
+    document.querySelectorAll('.stage-cell').forEach(cell => {
+      cell.classList.toggle('active', cell.dataset.filterStage === state.stage);
+    });
+    document.querySelectorAll('.view-pill[data-view]').forEach(pill => {
+      pill.classList.toggle('active', pill.dataset.view === state.activeView);
+    });
+    document.querySelectorAll('.facet').forEach(facet => {
+      const key = facet.dataset.facet;
+      const trigger = facet.querySelector('.facet-trigger');
+      const value = state[key];
+      if (value) {
+        facet.classList.add('active');
+        const btn = facet.querySelector(`button[data-value="${value}"] span:nth-child(2)`);
+        const label = btn ? btn.textContent : value;
+        trigger.innerHTML = `${facet.dataset.facet[0].toUpperCase() + facet.dataset.facet.slice(1)}: <span class="facet-value">${label}</span><span class="clear" data-clear="${key}"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l6 6M9 3l-6 6"/></svg></span>`;
+      } else {
+        facet.classList.remove('active');
+        const labels = { brand: '+ Brand', season: '+ Season', time: '+ Delivery', factory: '+ Factory' };
+        trigger.innerHTML = `${labels[key]}<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg>`;
+      }
+      facet.querySelectorAll('.facet-menu button').forEach(b => {
+        b.classList.toggle('selected', b.dataset.value === value);
+      });
+    });
+  }
+
+  function applyView(viewKey) {
+    const view = SAVED_VIEWS[viewKey];
+    if (!view) return;
+    state = {
+      ...state,
+      status: view.status, stage: view.stage, brand: view.brand,
+      season: view.season, time: view.time, factory: view.factory,
+      search: view.search, minAge: view.minAge || 0,
+      activeView: viewKey,
+    };
+    document.getElementById('filterSearch').value = view.search || '';
+    syncUI();
+    applyFilters();
+  }
+
+  function resetFilters() {
+    state = {
+      status: 'all', stage: 'all', brand: null, season: null,
+      time: null, factory: null, search: '', minAge: 0,
+      activeView: null,
+    };
+    document.getElementById('filterSearch').value = '';
+    syncUI();
+    applyFilters();
+  }
+
+  document.querySelectorAll('.s-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      state.status = chip.dataset.filterStatus;
+      state.activeView = null;
+      syncUI(); applyFilters();
+    });
+  });
+
+  document.querySelectorAll('.stage-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      state.stage = cell.dataset.filterStage;
+      state.activeView = null;
+      syncUI(); applyFilters();
+    });
+  });
+
+  document.querySelectorAll('.facet-trigger').forEach(trigger => {
+    trigger.addEventListener('click', (e) => {
+      const facet = trigger.closest('.facet');
+      const wasOpen = facet.classList.contains('open');
+      document.querySelectorAll('.facet').forEach(f => f.classList.remove('open'));
+      if (!wasOpen) facet.classList.add('open');
+      e.stopPropagation();
+    });
+  });
+
+  document.addEventListener('click', (e) => {
+    const clear = e.target.closest('[data-clear]');
+    if (clear) {
+      state[clear.dataset.clear] = null;
+      state.activeView = null;
+      syncUI(); applyFilters();
+      e.stopPropagation();
+      return;
+    }
+    if (!e.target.closest('.facet')) {
+      document.querySelectorAll('.facet').forEach(f => f.classList.remove('open'));
+    }
+  });
+
+  document.querySelectorAll('.facet-menu button').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const facet = btn.closest('.facet');
+      const key = facet.dataset.facet;
+      const value = btn.dataset.value;
+      state[key] = (state[key] === value) ? null : value;
+      state.activeView = null;
+      facet.classList.remove('open');
+      syncUI(); applyFilters();
+      e.stopPropagation();
+    });
+  });
+
+  document.querySelectorAll('.view-pill[data-view]').forEach(pill => {
+    pill.addEventListener('click', () => applyView(pill.dataset.view));
+  });
+
+  document.getElementById('filterSearch').addEventListener('input', (e) => {
+    state.search = e.target.value;
+    state.activeView = null;
+    syncUI(); applyFilters();
+  });
+
+  document.getElementById('resetFilters').addEventListener('click', resetFilters);
+  document.getElementById('emptyReset').addEventListener('click', resetFilters);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      document.getElementById('filterSearch').focus();
+    } else if (e.key === 'Escape') {
+      document.querySelectorAll('.facet').forEach(f => f.classList.remove('open'));
+    }
+  });
+
+  syncUI();
+  applyFilters();
+})();
+</script>
+
+</body>
+</html>

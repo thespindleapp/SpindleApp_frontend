@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spindle — Today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --paper:        #F4EFE5;
+  --paper-deep:   #ECE5D6;
+  --surface:      #FBF8F0;
+  --surface-2:    #F8F4EA;
+  --ink:          #14110C;
+  --ink-soft:     #595142;
+  --ink-muted:    #8A8270;
+  --ink-faint:    #B6AC93;
+  --hairline:     #DDD3C0;
+  --hairline-strong: #C9BFA8;
+  --ochre:         #B07527;
+  --ochre-deep:    #8C5A1B;
+  --ochre-wash:    rgba(232, 198, 121, 0.55);
+  --ochre-soft:    rgba(176, 117, 39, 0.10);
+  --green:        #5C8A4A;
+  --green-soft:   rgba(92, 138, 74, 0.10);
+  --red:          #B23A3A;
+  --red-soft:     rgba(178, 58, 58, 0.10);
+  --blue:         #4F6F94;
+  --blue-soft:    rgba(79, 111, 148, 0.08);
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: 14px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--ochre-wash); color: var(--ink); }
+
+.grain {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 100;
+  opacity: 0.3; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.078  0 0 0 0 0.067  0 0 0 0 0.047  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ═════════ APP LAYOUT ═════════ */
+.app {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100dvh;
+}
+@media (max-width: 880px) { .app { grid-template-columns: 1fr; } }
+
+/* ═════════ SIDEBAR ═════════ */
+.side {
+  background: var(--paper-deep);
+  border-right: 1px solid var(--hairline);
+  padding: 22px 18px;
+  display: flex; flex-direction: column;
+  gap: 28px;
+  position: sticky; top: 0;
+  height: 100dvh;
+}
+@media (max-width: 880px) { .side { display: none; } }
+.brand {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  user-select: none;
+}
+.brand .mark {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 28px; line-height: 1;
+  letter-spacing: -0.02em;
+}
+.brand .mark::after {
+  content: '';
+  display: inline-block;
+  width: 5px; height: 5px;
+  margin-left: 2px;
+  border-radius: 999px;
+  background: var(--ochre);
+  transform: translateY(-2px);
+}
+.side-section {
+  display: flex; flex-direction: column;
+  gap: 2px;
+}
+.side-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0 8px 8px;
+  font-weight: 500;
+}
+.side a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.side a:hover { background: rgba(20,17,12,0.04); color: var(--ink); }
+.side a.active {
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 500;
+}
+.side a .count {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  opacity: 0.6;
+}
+.side a.active .count { opacity: 0.7; }
+.side .acct {
+  margin-top: auto;
+  display: grid; grid-template-columns: 28px 1fr; gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-top: 1px solid var(--hairline);
+}
+.side .acct .av {
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #C49449, #8C5A1B);
+  color: #fff;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
+}
+.side .acct .who { font-size: 12.5px; color: var(--ink); font-weight: 500; }
+.side .acct .role {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ═════════ MAIN ═════════ */
+.main { padding: 0; min-width: 0; }
+.shell { padding-inline: clamp(20px, 4vw, 56px); }
+
+/* Top bar */
+.top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper);
+  position: sticky; top: 0; z-index: 20;
+  backdrop-filter: saturate(140%) blur(8px);
+  -webkit-backdrop-filter: saturate(140%) blur(8px);
+}
+.ask {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 10px;
+  padding: 8px 14px;
+  max-width: 640px;
+  transition: border-color 160ms var(--ease-out);
+}
+.ask:focus-within { border-color: var(--ochre); }
+.ask svg { width: 14px; height: 14px; color: var(--ink-muted); flex-shrink: 0; }
+.ask .placeholder {
+  font-size: 13.5px;
+  color: var(--ink-muted);
+  flex: 1;
+}
+.ask .placeholder em {
+  font-style: italic;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.ask .kbd {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--hairline);
+}
+.top-actions { display: flex; gap: 8px; align-items: center; }
+.top-status {
+  display: flex; gap: 14px; align-items: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+.top-status .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--green); animation: breathe 1.8s var(--ease-in-out) infinite; }
+@keyframes breathe { 0%,100% { opacity: 0.55 } 50% { opacity: 1 } }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px; font-weight: 500;
+  border: 1px solid transparent;
+  transition: transform 140ms var(--ease-out), background 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.btn-primary { background: var(--ink); color: var(--paper); }
+.btn-primary:hover { background: #28221A; }
+.btn-primary:active { transform: scale(0.97); }
+.btn-secondary { background: #fff; color: var(--ink); border-color: var(--hairline-strong); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--ink-faint); }
+.btn-ghost { color: var(--ink-soft); }
+.btn-ghost:hover { color: var(--ink); }
+.btn-accent { background: var(--ochre); color: var(--ink); }
+.btn-accent:hover { background: #C4842F; }
+.btn-accent:active { transform: scale(0.97); }
+.btn-sm { height: 26px; padding: 0 10px; font-size: 12px; border-radius: 6px; }
+
+/* ═════════ HERO ═════════ */
+.hero {
+  padding: clamp(36px, 5vw, 56px) 28px clamp(24px, 3vw, 32px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: end;
+}
+@media (max-width: 880px) { .hero { grid-template-columns: 1fr; } }
+.hero h1 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic; font-weight: 400;
+  font-size: clamp(34px, 4.6vw, 56px);
+  line-height: 1; letter-spacing: -0.012em;
+  margin-bottom: 14px;
+}
+.hero h1 em { color: var(--ochre-deep); }
+.hero .lede {
+  color: var(--ink-soft);
+  font-size: 14.5px;
+  line-height: 1.55;
+  max-width: 50ch;
+}
+.hero .lede strong { color: var(--ink); font-weight: 500; }
+.hero .stats-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.hero .stats-strip > div {
+  padding: 12px 0;
+  border-left: 1px solid var(--hairline);
+  padding-left: 16px;
+}
+.hero .stats-strip > div:first-child { border-left: 0; padding-left: 0; }
+.hero .stats-strip .l {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.hero .stats-strip .v {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.hero .stats-strip .v small {
+  font-family: 'Geist', sans-serif;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-left: 4px;
+  font-weight: 400;
+}
+
+/* ═════════ SECTION HEAD ═════════ */
+.sec-head {
+  display: flex; align-items: end; justify-content: space-between;
+  padding: 0 28px;
+  margin-bottom: 14px;
+  gap: 18px; flex-wrap: wrap;
+}
+.sec-head .ttl {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.005em;
+}
+.sec-head .ttl em {
+  font-style: normal;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-left: 8px;
+  vertical-align: 3px;
+}
+.sec-head .meta {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ═════════ PRIORITY CARDS ═════════ */
+.priority {
+  padding: 0 28px clamp(48px, 6vw, 72px);
+  display: grid; gap: 14px;
+}
+.pri {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
+}
+.pri:hover {
+  border-color: var(--hairline-strong);
+  box-shadow: 0 1px 0 rgba(20,17,12,0.04), 0 18px 40px -22px rgba(20,17,12,0.10);
+}
+.pri-grid {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+}
+.pri-num {
+  background: var(--surface-2);
+  border-right: 1px solid var(--hairline);
+  padding: 22px 0 22px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.pri-num .n {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+.pri-num .pip {
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--red);
+}
+.pri-num .pip.med  { background: var(--ochre); }
+.pri-num .pip.low  { background: var(--ink-faint); }
+
+.pri-body {
+  padding: 18px 22px 16px;
+}
+.pri-why {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1.35;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  margin-bottom: 14px;
+}
+.pri-why .kw {
+  background: var(--ochre-wash);
+  font-style: normal;
+  font-family: 'Geist', sans-serif;
+  font-size: 14.5px;
+  padding: 1px 6px 2px;
+  border-radius: 4px;
+  font-weight: 500;
+  color: var(--ink);
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+
+.pri-meta {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-block: 10px;
+  border-block: 1px solid var(--hairline);
+}
+.pri-meta .item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.pri-meta .item .l {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pri-meta .item.style {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink);
+}
+.pri-meta .item.brand strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.pri-thread {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+.pri-thread .src {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
+  color: #fff;
+  font-family: 'Geist', sans-serif;
+}
+.pri-thread .src.wa { background: #25D366; }
+.pri-thread .src.gmail { background: #C4392F; }
+.pri-thread .src.outlook { background: #2A56A6; }
+.pri-thread .src.email { background: var(--ink); }
+.pri-thread .latest {
+  font-size: 12.5px;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.pri-thread .latest small {
+  display: block;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.pri-thread .latest .quote {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+.pri-thread .gap {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-align: right;
+}
+.pri-thread .gap strong { color: var(--red); font-weight: 500; }
+
+.pri-actions {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.pri-actions .stamp {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+.pri-actions .stamp em {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  color: var(--ochre-deep);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+/* ═════════ STALE BUT LIVE ═════════ */
+.stale {
+  padding: 0 28px clamp(48px, 6vw, 72px);
+}
+.stale-list {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.stale-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1.6fr) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--hairline);
+  transition: background 160ms var(--ease-out);
+}
+.stale-row:last-child { border-bottom: 0; }
+.stale-row:hover { background: var(--surface-2); }
+.stale-row .src {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 600;
+  color: #fff;
+  font-family: 'Geist', sans-serif;
+}
+.stale-row .src.wa { background: #25D366; }
+.stale-row .src.gmail { background: #C4392F; }
+.stale-row .src.outlook { background: #2A56A6; }
+.stale-row .summary {
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.stale-row .summary small {
+  display: block;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+.stale-row .why {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.stale-row .gap {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.stale-row .gap strong { color: var(--ochre-deep); font-weight: 500; }
+
+/* ═════════ BY STYLE ═════════ */
+.by-style {
+  padding: 0 28px clamp(48px, 6vw, 72px);
+}
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.s-card {
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  transition: border-color 160ms var(--ease-out);
+}
+.s-card:hover { border-color: var(--hairline-strong); }
+.s-card .s-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+}
+.s-card .s-style {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.s-card .s-name {
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.3;
+  font-weight: 500;
+}
+.s-card .s-status {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.s-card .s-status.blocked  { background: var(--red-soft); color: var(--red); }
+.s-card .s-status.waiting  { background: var(--ochre-soft); color: var(--ochre-deep); }
+.s-card .s-status.ontrack  { background: var(--green-soft); color: var(--green); }
+.s-card .s-status.shipped  { background: var(--blue-soft); color: var(--blue); }
+.s-card .s-status .dot { width: 5px; height: 5px; border-radius: 99px; background: currentColor; }
+.s-card .s-meta {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+.s-card .s-last {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+/* ═════════ FOOT ═════════ */
+.doc-foot {
+  border-top: 1px solid var(--hairline);
+  padding: 20px 28px 32px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <a href="#" class="brand"><span class="mark">Spindle</span></a>
+
+    <nav class="side-section">
+      <span class="side-label">Inbox</span>
+      <a href="#" class="active">Today <span class="count">5</span></a>
+      <a href="#">Stale but live <span class="count">11</span></a>
+      <a href="#">Awaiting reply <span class="count">23</span></a>
+      <a href="#">All threads <span class="count">412</span></a>
+      <a href="#">Snoozed <span class="count">8</span></a>
+    </nav>
+
+    <nav class="side-section">
+      <span class="side-label">By workspace</span>
+      <a href="#">Styles <span class="count">247</span></a>
+      <a href="#">Brands <span class="count">19</span></a>
+      <a href="#">Factories <span class="count">7</span></a>
+      <a href="#">POs <span class="count">156</span></a>
+    </nav>
+
+    <nav class="side-section">
+      <span class="side-label">Pinned</span>
+      <a href="#">POPPI</a>
+      <a href="#">VIVA Global</a>
+      <a href="#">MARLOWE LANE · ML25</a>
+    </nav>
+
+    <div class="acct">
+      <div class="av">RK</div>
+      <div>
+        <div class="who">Rhea Khanna</div>
+        <div class="role">Senior Merch · Studio</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <div class="top">
+      <div class="ask">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="m11 11 3 3"/></svg>
+        <span class="placeholder">Ask anything &mdash; <em>"what's blocking the VIVA Brazil order?"</em></span>
+        <span class="kbd">⌘ K</span>
+      </div>
+      <div class="top-actions">
+        <div class="top-status"><span class="dot"></span>Synced 00:12 ago</div>
+        <button class="btn btn-secondary">Compose</button>
+        <button class="btn btn-primary">Open inbox</button>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div>
+        <h1>Five things, before you do <em>anything else</em>.</h1>
+        <p class="lede">Spindle read <strong>147 emails</strong> and <strong>34 WhatsApp messages</strong> overnight. Most don't need you. These five do — ranked by what's actually blocking production right now, not by what's loudest. <strong>One of them is from 23 days ago</strong> — Spindle re-prioritised it this morning.</p>
+      </div>
+      <div class="stats-strip">
+        <div>
+          <div class="l">Today</div>
+          <div class="v">5</div>
+        </div>
+        <div>
+          <div class="l">Stale but live</div>
+          <div class="v">11</div>
+        </div>
+        <div>
+          <div class="l">Saved this week</div>
+          <div class="v">6h <small>40m</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRIORITY -->
+    <div class="sec-head">
+      <span class="ttl">Today, ranked <em>Wednesday · 8 January</em></span>
+      <span class="meta">Re-ranked · 06:00 · model v0.14</span>
+    </div>
+
+    <section class="priority">
+
+      <!-- PRIORITY 1 -->
+      <article class="pri">
+        <div class="pri-grid">
+          <div class="pri-num"><span class="n">01</span><span class="pip"></span></div>
+          <div class="pri-body">
+            <p class="pri-why">
+              Fabric for <span class="kw">Jasmine Emb Jacket khaki</span> arrives <span class="kw">28 Jan</span> per Vikram. Lab dip is still pending with the brand &mdash; if not approved by <span class="kw">tomorrow</span>, the cutting window closes and delivery slips past 15 Feb. POPPI has already pushed back twice this season.
+            </p>
+
+            <div class="pri-meta">
+              <span class="item style">style 6601234</span>
+              <span class="item brand"><span class="l">brand</span> <strong>POPPI</strong></span>
+              <span class="item"><span class="l">qty</span> 600 units</span>
+              <span class="item"><span class="l">value</span> £8,100</span>
+              <span class="item"><span class="l">delivery</span> 06-01-2025 (slipping)</span>
+            </div>
+
+            <div class="pri-thread">
+              <span class="src wa">W</span>
+              <div class="latest">
+                <span class="quote">"Hi ma'am, fabric for 6601234 will reach factory only by 28 Jan. Need to push delivery to mid Feb please."</span>
+                <small>Vikram · Tirupur Sampling · WhatsApp · 14:32 yesterday</small>
+              </div>
+              <div class="gap">brand silent <strong>8 days</strong></div>
+            </div>
+
+            <div class="pri-actions">
+              <button class="btn btn-accent btn-sm">Chase brand
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h6M6 3l3 3-3 3"/></svg>
+              </button>
+              <button class="btn btn-secondary btn-sm">Open thread (14)</button>
+              <button class="btn btn-ghost btn-sm">Snooze 24h</button>
+              <span class="stamp">Why now: <em>cutting window 48h</em></span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- PRIORITY 2 — the 23-day-old re-surfaced one -->
+      <article class="pri">
+        <div class="pri-grid">
+          <div class="pri-num"><span class="n">02</span><span class="pip"></span></div>
+          <div class="pri-body">
+            <p class="pri-why">
+              Iris Halloran at MARLOWE LANE emailed <span class="kw">23 days ago</span> about the Frost Satin cancellation &mdash; you didn't reply. She <span class="kw">followed up this morning</span> asking for confirmation, and she's about to invoice <span class="kw">£4,200 fabric liability</span>. Confirming today saves the dispute.
+            </p>
+
+            <div class="pri-meta">
+              <span class="item style">style SL000040 / ML00000401</span>
+              <span class="item brand"><span class="l">brand</span> <strong>MARLOWE LANE</strong></span>
+              <span class="item"><span class="l">status</span> cancelled, unconfirmed</span>
+              <span class="item"><span class="l">at risk</span> £4,200</span>
+            </div>
+
+            <div class="pri-thread">
+              <span class="src outlook">O</span>
+              <div class="latest">
+                <span class="quote">"Hi all, just following up &mdash; have you confirmed the cancellation on your side? I'd like to close this off in our books today."</span>
+                <small>Iris Halloran · MARLOWE LANE · Outlook · 06:47 today</small>
+              </div>
+              <div class="gap">no reply <strong>23 days</strong></div>
+            </div>
+
+            <div class="pri-actions">
+              <button class="btn btn-accent btn-sm">Reply with confirm
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h6M6 3l3 3-3 3"/></svg>
+              </button>
+              <button class="btn btn-secondary btn-sm">Open thread (4)</button>
+              <button class="btn btn-ghost btn-sm">Snooze 4h</button>
+              <span class="stamp">Why now: <em>re-prioritised this morning</em></span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- PRIORITY 3 — quiet thread blocking production -->
+      <article class="pri">
+        <div class="pri-grid">
+          <div class="pri-num"><span class="n">03</span><span class="pip"></span></div>
+          <div class="pri-body">
+            <p class="pri-why">
+              Halverra Mills has been waiting <span class="kw">11 days</span> for your reply on the FOB increase for PO 511291. They've emailed twice. Production is held; they have looms allocated through <span class="kw">25 Jan</span>. Each day past today risks rebooking the slot and adding ~10 days to your 1,250-unit order.
+            </p>
+
+            <div class="pri-meta">
+              <span class="item style">styles 6601258, 6601259</span>
+              <span class="item brand"><span class="l">factory</span> <strong>Halverra Mills</strong></span>
+              <span class="item"><span class="l">PO</span> 511291</span>
+              <span class="item"><span class="l">qty</span> 1,250 units</span>
+              <span class="item"><span class="l">value</span> £25,625</span>
+            </div>
+
+            <div class="pri-thread">
+              <span class="src gmail">G</span>
+              <div class="latest">
+                <span class="quote">"Just a gentle reminder &mdash; we need your countersign on the revised FOB by EOD so we don't lose our loom allocation. Please advise."</span>
+                <small>Halverra Mills · Gmail · 4 days ago</small>
+              </div>
+              <div class="gap">you silent <strong>11 days</strong></div>
+            </div>
+
+            <div class="pri-actions">
+              <button class="btn btn-accent btn-sm">Reply
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h6M6 3l3 3-3 3"/></svg>
+              </button>
+              <button class="btn btn-secondary btn-sm">Open thread (8)</button>
+              <button class="btn btn-ghost btn-sm">Escalate to Head of Sourcing</button>
+              <span class="stamp">Why now: <em>loom slot expires 25 Jan</em></span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- PRIORITY 4 — sample approval window -->
+      <article class="pri">
+        <div class="pri-grid">
+          <div class="pri-num"><span class="n">04</span><span class="pip med"></span></div>
+          <div class="pri-body">
+            <p class="pri-why">
+              PP sample for <span class="kw">5501465 Sun All Over Embd Dress</span> was approved by VIVA Global on 4 Jan. Per your standing agreement with VIVA, you owe the factory a fabric confirmation within <span class="kw">48 hours of PP approval</span>. The clock runs out tomorrow.
+            </p>
+
+            <div class="pri-meta">
+              <span class="item style">style 5501465</span>
+              <span class="item brand"><span class="l">brand</span> <strong>FOREST FERN MAIN 4 / VIVA Global</strong></span>
+              <span class="item"><span class="l">qty</span> 1,600 + 160 units</span>
+              <span class="item"><span class="l">deadline</span> 9 Jan EOD</span>
+            </div>
+
+            <div class="pri-thread">
+              <span class="src gmail">G</span>
+              <div class="latest">
+                <span class="quote">"PP approved, please proceed with bulk fabric per signed swatch attached. Note: cotton gauze 40s, weight 110gsm."</span>
+                <small>Lena · VIVA Global · Gmail · 4 January</small>
+              </div>
+              <div class="gap">factory waiting <strong>4 days</strong></div>
+            </div>
+
+            <div class="pri-actions">
+              <button class="btn btn-accent btn-sm">Confirm to factory</button>
+              <button class="btn btn-secondary btn-sm">Open thread (11)</button>
+              <button class="btn btn-ghost btn-sm">Snooze 4h</button>
+              <span class="stamp">Why now: <em>48h SLA expires tomorrow</em></span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- PRIORITY 5 — quiet but ticking -->
+      <article class="pri">
+        <div class="pri-grid">
+          <div class="pri-num"><span class="n">05</span><span class="pip low"></span></div>
+          <div class="pri-body">
+            <p class="pri-why">
+              MERIDIAN's payment terms confirmation has been sitting in your reply queue for <span class="kw">6 days</span>. Order valued <span class="kw">£12,570</span>; they're holding shipment until terms are agreed. No fire yet, but the BL date in their last note is 22 Jan &mdash; gentle nudge before this becomes urgent.
+            </p>
+
+            <div class="pri-meta">
+              <span class="item style">style DEPT 536 (82034501)</span>
+              <span class="item brand"><span class="l">brand</span> <strong>MERIDIAN</strong></span>
+              <span class="item"><span class="l">qty</span> 600 units</span>
+              <span class="item"><span class="l">value</span> £12,570</span>
+            </div>
+
+            <div class="pri-thread">
+              <span class="src email">E</span>
+              <div class="latest">
+                <span class="quote">"Awaiting your confirmation on the 60-day net terms before we book the BL. Please advise at your earliest."</span>
+                <small>Joaquín Reyes · MERIDIAN Finance · Email · 6 days ago</small>
+              </div>
+              <div class="gap">no reply <strong>6 days</strong></div>
+            </div>
+
+            <div class="pri-actions">
+              <button class="btn btn-secondary btn-sm">Reply</button>
+              <button class="btn btn-ghost btn-sm">Snooze 48h</button>
+              <button class="btn btn-ghost btn-sm">Mark resolved</button>
+              <span class="stamp">Why now: <em>BL date 14 days out</em></span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+    </section>
+
+    <!-- STALE BUT LIVE -->
+    <div class="sec-head">
+      <span class="ttl">Stale but live <em>11 threads · still in motion</em></span>
+      <span class="meta">Spindle is watching — will surface when the timer changes</span>
+    </div>
+
+    <section class="stale">
+      <div class="stale-list">
+        <div class="stale-row">
+          <span class="src wa">W</span>
+          <div class="summary">
+            Strike-off pending for <strong>6501110 lace shirt</strong>
+            <small>style 6501110 · FOREST FERN MAIN 4 · Halverra</small>
+          </div>
+          <div class="why"><em>Lab dip out 14 Jan; sample due 21 Jan; OK so far.</em></div>
+          <span class="gap">quiet <strong>9 days</strong></span>
+          <button class="btn btn-ghost btn-sm">View →</button>
+        </div>
+        <div class="stale-row">
+          <span class="src gmail">G</span>
+          <div class="summary">
+            Trim sourcing for <strong>6601429 crinkle co-ord shirt</strong>
+            <small>style 6601429 · POPPI JAIPUR 7 · Kavita</small>
+          </div>
+          <div class="why"><em>Three options sent; brand reviewing on next call.</em></div>
+          <span class="gap">quiet <strong>5 days</strong></span>
+          <button class="btn btn-ghost btn-sm">View →</button>
+        </div>
+        <div class="stale-row">
+          <span class="src outlook">O</span>
+          <div class="summary">
+            Embroidery placement query, <strong>5501465 Sun dress</strong>
+            <small>style 5501465 · VIVA Global · Lena</small>
+          </div>
+          <div class="why"><em>Resolved on call 4 Jan; auto-archiving in 3 days.</em></div>
+          <span class="gap">quiet <strong>4 days</strong></span>
+          <button class="btn btn-ghost btn-sm">View →</button>
+        </div>
+        <div class="stale-row">
+          <span class="src gmail">G</span>
+          <div class="summary">
+            Fit comments awaited, <strong>2000771 Kaia Frill Dress</strong>
+            <small>style 2000771 · PAVILION BEACHWEAR · Nina</small>
+          </div>
+          <div class="why"><em>Nina out of office until 13 Jan; her OOO autoreply confirms.</em></div>
+          <span class="gap">on hold <strong>13 Jan</strong></span>
+          <button class="btn btn-ghost btn-sm">View →</button>
+        </div>
+        <div class="stale-row">
+          <span class="src email">E</span>
+          <div class="summary">
+            Strike-off resubmission, <strong>6401322 stripe dress</strong>
+            <small>style 6401322 · HALO KIDS · Arjun</small>
+          </div>
+          <div class="why"><em>Awaiting v3 swatch from mill; ETA 12 Jan per Arjun.</em></div>
+          <span class="gap">on hold <strong>12 Jan</strong></span>
+          <button class="btn btn-ghost btn-sm">View →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- BY STYLE -->
+    <div class="sec-head">
+      <span class="ttl">By style <em>247 active · 12 blocked · 8 ship this week</em></span>
+      <span class="meta">Status inferred from email + WhatsApp · updated continuously</span>
+    </div>
+
+    <section class="by-style">
+      <div class="style-grid">
+        <div class="s-card">
+          <div class="s-head">
+            <div>
+              <div class="s-style">style 6601234 · POPPI</div>
+              <div class="s-name">Jasmine Emb Jacket — khaki</div>
+            </div>
+            <span class="s-status blocked"><span class="dot"></span>blocked</span>
+          </div>
+          <div class="s-meta">
+            <span>600 units</span><span>£8,100</span><span>delivery slipping</span>
+          </div>
+          <div class="s-last"><em>"Fabric ETA 28 Jan, lab dip pending."</em></div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-head">
+            <div>
+              <div class="s-style">style 5501465 · VIVA Global</div>
+              <div class="s-name">Sun All Over Embd Dress</div>
+            </div>
+            <span class="s-status waiting"><span class="dot"></span>waiting</span>
+          </div>
+          <div class="s-meta">
+            <span>1,760 units</span><span>£25,520</span><span>SLA in 1d</span>
+          </div>
+          <div class="s-last"><em>"PP approved 4 Jan, factory awaiting fabric confirm."</em></div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-head">
+            <div>
+              <div class="s-style">style 6601258 · POPPI</div>
+              <div class="s-name">Tiered LS Maxi Dress — black</div>
+            </div>
+            <span class="s-status waiting"><span class="dot"></span>waiting</span>
+          </div>
+          <div class="s-meta">
+            <span>650 units</span><span>£13,325</span><span>FOB pending</span>
+          </div>
+          <div class="s-last"><em>"FOB countersign awaited; loom slot 25 Jan."</em></div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-head">
+            <div>
+              <div class="s-style">style 7001770 · PAVILION BEACHWEAR</div>
+              <div class="s-name">Kamila Cami</div>
+            </div>
+            <span class="s-status ontrack"><span class="dot"></span>on track</span>
+          </div>
+          <div class="s-meta">
+            <span>1,400 units</span><span>£10,920</span><span>ships 14 Jan</span>
+          </div>
+          <div class="s-last"><em>"Cut and stitch on track, BL drafting.</em></div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-head">
+            <div>
+              <div class="s-style">style SL000040 · MARLOWE LANE</div>
+              <div class="s-name">Frost Satin Skirt</div>
+            </div>
+            <span class="s-status blocked"><span class="dot"></span>cancelled</span>
+          </div>
+          <div class="s-meta">
+            <span>cancelled</span><span>£4,200 liability</span>
+          </div>
+          <div class="s-last"><em>"Brand absorbing, awaiting your confirmation."</em></div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-head">
+            <div>
+              <div class="s-style">style 5401612 · HALO KIDS</div>
+              <div class="s-name">Animal Print Dress</div>
+            </div>
+            <span class="s-status shipped"><span class="dot"></span>shipped</span>
+          </div>
+          <div class="s-meta">
+            <span>1,000 units</span><span>£5,450</span><span>BL 5 Jan</span>
+          </div>
+          <div class="s-last"><em>"Vessel ETA Felixstowe 22 Jan."</em></div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-head">
+            <div>
+              <div class="s-style">style 6601234 · POPPI</div>
+              <div class="s-name">Jasmine Emb Long Sleeve Midaxi</div>
+            </div>
+            <span class="s-status ontrack"><span class="dot"></span>on track</span>
+          </div>
+          <div class="s-meta">
+            <span>600 units</span><span>£10,500</span><span>cutting</span>
+          </div>
+          <div class="s-last"><em>"Cut start 9 Jan per Vikram."</em></div>
+        </div>
+
+        <div class="s-card">
+          <div class="s-head">
+            <div>
+              <div class="s-style">style AH6601 · AURORA HOUSE</div>
+              <div class="s-name">Vinnie Top — sage</div>
+            </div>
+            <span class="s-status waiting"><span class="dot"></span>waiting</span>
+          </div>
+          <div class="s-meta">
+            <span>100 units</span><span>£1,985</span><span>fit comments due</span>
+          </div>
+          <div class="s-last"><em>"Submitted 28 Dec; brand reviewing."</em></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="doc-foot">
+      <span>Spindle · Today view · v0.14 demo</span>
+      <span>Data: 25-12_RMG_ORDER_IN_HAND.xlsx + simulated comms</span>
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>
