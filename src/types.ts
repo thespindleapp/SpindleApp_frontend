@@ -60,6 +60,7 @@ export interface EmailAttachment {
   mimeType: string;
   sizeBytes: number;
   createdAt: string;
+  emailId?: string | null;
 }
 
 export interface StyleEmail {
@@ -82,10 +83,13 @@ export interface StyleCard {
   stage: string | null;
   status: string | null;
   brand?: { id: string; name: string; slug: string } | null;
+  supplierName?: string | null;
+  metadata?: { createdFromEmail?: boolean; sourceEmailId?: string } | null;
   fields: Record<string, StyleFieldView>;
   needsConfirmationCount: number;
   fieldRevisions?: FieldRevision[];
   confirmations?: ConfirmationRow[];
+  attachments?: EmailAttachment[];
 }
 
 export interface Brand {
@@ -119,6 +123,28 @@ export interface EmailDetail {
   status: string;
   styleId: string | null;
   attachments?: EmailAttachment[];
+  issueClass?: string | null;
+  issueKind?: string | null;
+  issueReason?: string | null;
+  duplicateVerdict?: 'CONFIRMED' | 'POSSIBLE' | null;
+  duplicateOfEmailId?: string | null;
+  redeliveryCount?: number;
+}
+
+export interface DuplicateReview {
+  id: string;
+  kind: 'EMAIL' | 'STYLE';
+  verdict: 'CONFIRMED' | 'POSSIBLE';
+  status: 'OPEN' | 'CONFIRMED' | 'DISMISSED';
+  reason: string;
+  emailId: string | null;
+  matchedEmailId: string | null;
+  styleId: string | null;
+  matchedStyleId: string | null;
+  email?: { id: string; subject: string } | null;
+  matchedEmail?: { id: string; subject: string } | null;
+  style?: { id: string; styleNumber: string; name: string } | null;
+  matchedStyle?: { id: string; styleNumber: string; name: string } | null;
 }
 
 export type StyleDraftDisposition = 'create' | 'match' | 'conflict' | 'needs_identity';

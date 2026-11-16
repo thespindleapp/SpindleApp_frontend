@@ -14,6 +14,7 @@ export const FIELD_ORDER = [
   'factoryName',
   'name',
   'styleNumber',
+  'sizeRange',
   'styleAssignment',
 ] as const;
 
@@ -31,6 +32,7 @@ const LABELS: Record<string, string> = {
   factoryName: 'Factory',
   name: 'Name',
   styleNumber: 'Style number',
+  sizeRange: 'Size range',
   styleAssignment: 'Style identity',
 };
 
@@ -130,35 +132,84 @@ type HeadlineField = {
   proposedValue?: unknown;
 };
 
-export function formatMoneyAmount(
-  value: unknown,
-  currency:
-    | {
-        confirmationStatus?: FieldDisplayStatus | string;
-        confirmedValue?: unknown;
-        displayValue?: unknown;
-      }
-    | null
-    | undefined,
-) {
-  const amount = formatFieldValue(value);
-  if (amount === '—') {
-    return amount;
+/** Parse a pound amount. A dollar string is not treated as GBP. */
+export function parseMoneyAmount(value: unknown): number | null {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null;
+    return Math.round(value * 100) / 100;
   }
-  if (!currency || !isCheckedStatus(currency.confirmationStatus)) {
-    return amount;
+  if (typeof value === 'string') {
+    const trimmed = value.trim().replace(/£/g, '').replace(/,/g, '').replace(/\s/g, '');
+    if (!/^-?\d+(?:\.\d+)?$/.test(trimmed)) return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : null;
   }
-  const code = String(currency.confirmedValue ?? currency.displayValue ?? '')
-    .trim()
-    .toUpperCase();
-  if (!code) {
-    return amount;
+  return null;
+}
+
+export function moneyMinorUnits(value: unknown): number | null {
+  const amount = parseMoneyAmount(value);
+  return amount == null ? null : Math.round(amount * 100);
+}
+
+/** Format an integer pence count. Avoids binary fractions in the displayed pounds. */
+export function formatGbpFromMinor(minor: number): string {
+  if (!Number.isSafeInteger(minor)) return '—';
+  const negative = minor < 0;
+  const abs = Math.abs(minor);
+  const pounds = Math.trunc(abs / 100);
+  const pence = abs % 100;
+  const grouped = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(pounds);
+  return `${negative ? '-' : ''}£${grouped}.${String(pence).padStart(2, '0')}`;
+}
+
+/** £25.00, £1,250.00. Missing or non-numeric amounts stay blank. */
+export function formatGbp(value: unknown): string {
+  const minor = moneyMinorUnits(value);
+  if (minor == null) return '—';
+  return formatGbpFromMinor(minor);
+}
+
+function currencyText(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const code = value.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(code) ? code : null;
+}
+
+/**
+ * True when a currency field states a code other than GBP.
+ * NOT_STATED defaults and rejected proposals do not count.
+ */
+export function blocksGbp(currency: unknown): boolean {
+  if (!currency || typeof currency !== 'object') return false;
+  const field = currency as {
+    confirmationStatus?: string;
+    confirmedValue?: unknown;
+    proposedValue?: unknown;
+    displayValue?: unknown;
+  };
+  const status = field.confirmationStatus;
+  if (!status || status === 'NOT_STATED' || status === 'REJECTED') return false;
+  const proposed = currencyText(field.proposedValue ?? field.displayValue);
+  const confirmed = currencyText(field.confirmedValue ?? field.displayValue);
+  if ((status === 'PROPOSED' || status === 'PENDING' || status === 'UNCONFIRMED' || status === 'NEEDS_REVIEW') && proposed && proposed !== 'GBP') {
+    return true;
   }
-  if (code === 'GBP') return `£${amount}`;
-  if (code === 'USD') return `$${amount}`;
-  if (code === 'EUR') return `€${amount}`;
-  if (code === 'INR') return `₹${amount}`;
-  return `${amount} ${code}`;
+  if ((status === 'CONFIRMED' || status === 'NEEDS_REVIEW') && confirmed && confirmed !== 'GBP') {
+    return true;
+  }
+  return false;
+}
+
+export function formatFactValue(field: string, value: unknown, currency?: unknown) {
+  if (field === 'costFob' && !blocksGbp(currency)) return formatGbp(value);
+  return formatFieldValue(value);
+}
+
+/** A pound amount, unless the paired currency field states another code. */
+export function formatMoneyAmount(value: unknown, currency?: unknown) {
+  if (blocksGbp(currency)) return formatFieldValue(value);
+  return formatGbp(value);
 }
 
 export function headlineFact(

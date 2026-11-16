@@ -19,6 +19,15 @@ export interface InboxEmail {
   threadId?: string | null;
   style: { id: string; styleNumber: string; name: string; listedAt: string | null } | null;
   attachments?: InboxAttachment[];
+  issueClass?: string | null;
+  issueKind?: string | null;
+  issueReason?: string | null;
+  attemptCount?: number;
+  duplicateVerdict?: 'CONFIRMED' | 'POSSIBLE' | null;
+  duplicateOfEmailId?: string | null;
+  hasDuplicateReview?: boolean;
+  redeliveryCount?: number;
+  metadata?: unknown;
 }
 
 export interface InboxItem {

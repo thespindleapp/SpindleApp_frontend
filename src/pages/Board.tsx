@@ -3,7 +3,16 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { FieldBlock } from '../components/FieldBlock';
 import { GarmentMark } from '../components/GarmentMark';
-import { STAGE_COLUMNS, boardColumnForStyle, stageDots } from '../lib/board';
+import {
+  LEGACY_STAGE_LABELS,
+  STAGE_COLUMNS,
+  STAGE_LABELS,
+  boardColumnForStyle,
+  currentStageTone,
+  legacyStageValue,
+  stageDots,
+  styleCreatedFromEmail,
+} from '../lib/board';
 import { gettingStartedProgress, gettingStartedSteps } from '../lib/empty';
 import { correctionPayload, fieldLabel, formatFieldValue, isCheckedStatus, styleTitle } from '../lib/format';
 import {
@@ -11,6 +20,7 @@ import {
   RANGE_FIELDS,
   checkedNumber,
   displayFact,
+  emailsDisagree,
   formatOrderTotal,
   historyEntries,
   lineOrderValue,
@@ -37,13 +47,8 @@ const COLUMN_PRESETS: Record<string, RangeField[]> = {
 
 const PHONE_QUERY = '(max-width: 720px)';
 
-const STAGE_LABELS: Record<string, string> = {
-  LAB_DIP: 'Lab Dip',
-  PROTO: 'Proto',
-  SMS: 'SMS',
-  PP: 'PP',
-  BULK: 'Bulk',
-  SHIP: 'Ship',
+const STAGE_FILTER_LABELS: Record<string, string> = {
+  ...STAGE_LABELS,
   UNCONFIRMED: 'Unchecked',
 };
 
@@ -66,7 +71,6 @@ export function BoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [stageFilter, setStageFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [brandFilter, setBrandFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortKey, setSortKey] = useState<SortKey>('styleNumber');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
@@ -144,16 +148,6 @@ export function BoardPage() {
     };
   }, []);
 
-  const brands = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const style of styles) {
-      if (style.brand?.id && style.brand?.name) {
-        map.set(style.brand.id, style.brand.name);
-      }
-    }
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [styles]);
-
   const totals = useMemo(() => orderTotals(styles), [styles]);
 
   const stats = useMemo(() => {
@@ -196,7 +190,6 @@ export function BoardPage() {
             return false;
           }
         }
-        if (brandFilter !== 'ALL' && style.brand?.id !== brandFilter) return false;
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase().trim();
           const factory = checkedText(style.fields.factoryName).toLowerCase();
@@ -240,7 +233,7 @@ export function BoardPage() {
         }
         return sortAsc ? left.localeCompare(right) : right.localeCompare(left);
       });
-  }, [styles, stageFilter, statusFilter, brandFilter, searchQuery, sortKey, sortAsc]);
+  }, [styles, stageFilter, statusFilter, searchQuery, sortKey, sortAsc]);
 
   const checks = useMemo(() => outstandingChecks(filteredStyles), [filteredStyles]);
   const groups = useMemo(() => groupStyles(filteredStyles, groupBy), [filteredStyles, groupBy]);
@@ -266,7 +259,6 @@ export function BoardPage() {
   function resetFilters() {
     setStageFilter('ALL');
     setStatusFilter('ALL');
-    setBrandFilter('ALL');
     setSearchQuery('');
   }
 
@@ -514,7 +506,7 @@ export function BoardPage() {
                     onClick={() => setStageFilter(stage)}
                   >
                     <span className="stage-dot" />
-                    <span className="stage-name">{STAGE_LABELS[stage] ?? stage}</span>
+                    <span className="stage-name">{STAGE_FILTER_LABELS[stage] ?? stage}</span>
                     <span className="stage-count">{stageCounts[stage] ?? 0}</span>
                   </div>
                 ))}
@@ -530,24 +522,11 @@ export function BoardPage() {
             </div>
 
             <div className="fs-bottom">
-              <div className="fs-facets">
-                <span className="fs-l">Filter</span>
-                {brands.length > 0 ? (
-                  <select className="view-pill" value={brandFilter} onChange={(event) => setBrandFilter(event.target.value)}>
-                    <option value="ALL">All Brands ({brands.length})</option>
-                    {brands.map((brand) => (
-                      <option key={brand.id} value={brand.id}>
-                        {brand.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : null}
-              </div>
               <div className="fs-tools">
                 <div className="search">
                   <input
                     type="text"
-                    placeholder="Search styles, brands..."
+                    placeholder="Search styles"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
@@ -558,7 +537,20 @@ export function BoardPage() {
               <div>
                 Showing <span className="count-num">{filteredStyles.length}</span> of {styles.length} styles
               </div>
-              {stageFilter !== 'ALL' || statusFilter !== 'ALL' || brandFilter !== 'ALL' || searchQuery ? (
+              {styles.length > 0 ? (
+                <div className="range-legend">
+                  <span>
+                    <span className="butter-pip" aria-hidden="true" /> Not checked yet
+                  </span>
+                  <span>
+                    <span className="range-disagree" aria-hidden="true">
+                      !
+                    </span>{' '}
+                    Emails disagree
+                  </span>
+                </div>
+              ) : null}
+              {stageFilter !== 'ALL' || statusFilter !== 'ALL' || searchQuery ? (
                 <button className="reset" type="button" onClick={resetFilters}>
                   Reset filters
                 </button>
@@ -871,7 +863,7 @@ function GalleryCard({ style, showField }: { style: StyleCard; showField: (field
   const delivery = displayFact(style.fields.deliveryDate);
   const status = displayFact(style.fields.status);
   const value = showField('costFob') ? lineOrderValue(style) : null;
-  const brand = style.brand?.name?.trim() ?? '';
+  const supplier = style.supplierName?.trim() ?? '';
   const showFactory = showField('factoryName') && factory.text !== '—';
 
   return (
@@ -881,30 +873,38 @@ function GalleryCard({ style, showField }: { style: StyleCard; showField: (field
         {showField('status') ? <StatusFlag fact={status} /> : null}
       </div>
       <div className="range-card-title">
-        <span className="range-card-name range-clip">{title}</span>
+        <span className="range-card-name range-clip">
+          {title}
+          {styleCreatedFromEmail(style) ? <span className="range-new">New</span> : null}
+        </span>
         {style.needsConfirmationCount > 0 ? (
           <span className="range-roll">
             <span className="butter-pip" aria-hidden="true" />
             {style.needsConfirmationCount}
           </span>
         ) : null}
+        {emailsDisagree(style) ? (
+          <span className="range-disagree" title="Emails disagree">
+            !
+          </span>
+        ) : null}
         <span className="range-card-no">{style.styleNumber}</span>
       </div>
-      {brand || showFactory ? (
-        <p className={`range-card-meta range-clip ${showFactory && factory.unchecked ? 'is-unchecked' : ''}`}>
-          {brand ? <span>{brand}</span> : null}
+      {supplier || showFactory ? (
+        <p className={`range-card-meta range-clip ${showFactory && (factory.unchecked || factory.disagree) ? 'is-unchecked' : ''}`}>
+          {supplier ? <span>{supplier}</span> : null}
           {showFactory ? (
             <>
-              {brand ? ' · mill ' : 'mill '}
-              {factory.unchecked ? <span className="butter-pip" aria-hidden="true" /> : null}
+              {supplier ? ' · mill ' : 'mill '}
+              <AttentionMark fact={factory} />
               <span>{factory.text}</span>
             </>
           ) : null}
         </p>
       ) : null}
       {chips.length > 0 ? (
-        <div className={`range-card-colours ${color.unchecked ? 'is-unchecked' : ''}`}>
-          {color.unchecked ? <span className="butter-pip" aria-hidden="true" /> : null}
+        <div className={`range-card-colours ${color.unchecked || color.disagree ? 'is-unchecked' : ''}`}>
+          <AttentionMark fact={color} />
           <span className="range-swatches" aria-hidden="true">
             {chips.map((chip) => (
               <span key={chip.name} style={{ background: chip.hex }} />
@@ -947,11 +947,17 @@ function TableCell({
           <span className="range-style-line">
             <span className="range-card-name range-clip" title={title}>
               {title}
+              {styleCreatedFromEmail(style) ? <span className="range-new">New</span> : null}
             </span>
             {style.needsConfirmationCount > 0 ? (
               <span className="range-roll">
                 <span className="butter-pip" aria-hidden="true" />
                 {style.needsConfirmationCount}
+              </span>
+            ) : null}
+            {emailsDisagree(style) ? (
+              <span className="range-disagree" title="Emails disagree">
+                !
               </span>
             ) : null}
           </span>
@@ -964,8 +970,8 @@ function TableCell({
     const factory = displayFact(style.fields.factoryName);
     if (factory.text === '—') return <span>—</span>;
     return (
-      <span className={`range-clip ${factory.unchecked ? 'is-unchecked' : ''}`} title={factory.text}>
-        {factory.unchecked ? <span className="butter-pip" aria-hidden="true" /> : null}
+      <span className={`range-clip ${factory.unchecked || factory.disagree ? 'is-unchecked' : ''}`} title={factory.text}>
+        <AttentionMark fact={factory} />
         {factory.text}
       </span>
     );
@@ -974,8 +980,8 @@ function TableCell({
     const color = displayFact(style.fields.color);
     const chips = color.text === '—' ? [] : colourChips(color.text);
     return (
-      <span className={`range-card-colours ${color.unchecked ? 'is-unchecked' : ''}`}>
-        {color.unchecked ? <span className="butter-pip" aria-hidden="true" /> : null}
+      <span className={`range-card-colours ${color.unchecked || color.disagree ? 'is-unchecked' : ''}`}>
+        <AttentionMark fact={color} />
         {chips.length > 0 ? (
           <span className="range-swatches" aria-hidden="true">
             {chips.map((chip) => (
@@ -1018,14 +1024,14 @@ function FactBit({
   prefix = '',
   suffix = '',
 }: {
-  fact: { text: string; unchecked: boolean };
+  fact: { text: string; unchecked: boolean; disagree: boolean };
   prefix?: string;
   suffix?: string;
 }) {
   if (fact.text === '—') return <span>—</span>;
   return (
-    <span className={fact.unchecked ? 'is-unchecked' : undefined}>
-      {fact.unchecked ? <span className="butter-pip" aria-hidden="true" /> : null}
+    <span className={fact.unchecked || fact.disagree ? 'is-unchecked' : undefined}>
+      <AttentionMark fact={fact} />
       {prefix}
       <span>{fact.text}</span>
       {suffix}
@@ -1051,30 +1057,51 @@ function latestUpdate(style: StyleCard): string {
 
 function StagePips({ style }: { style: StyleCard }) {
   const dots = stageDots(boardColumnForStyle(style));
+  const tone = currentStageTone(style);
   const pending = style.fields.stage ? !isCheckedStatus(style.fields.stage.confirmationStatus) && style.fields.stage.confirmationStatus !== 'NOT_STATED' : false;
+  const stageDisagrees = style.fields.stage?.confirmationStatus === 'NEEDS_REVIEW' || style.fields.stage?.proposedDiffersFromConfirmed === true;
+  const legacy = legacyStageValue(style);
   return (
     <div className="range-stage">
+      {legacy ? (
+        <p className="range-legacy">
+          {pending ? 'From email, not checked' : 'Recorded earlier'} as {LEGACY_STAGE_LABELS[legacy]}. Not placed on the nine stages.
+        </p>
+      ) : null}
       <div className="stage-pips" aria-label="Production stage">
         {STAGE_COLUMNS.map((stage, index) => (
           <span
             key={stage}
-            className={`stage-pip ${dots[index] === 'done' ? 'is-done' : ''} ${dots[index] === 'current' ? 'is-now' : ''}`}
+            className={`stage-pip ${dots[index] === 'done' ? 'is-done' : ''} ${dots[index] === 'current' ? 'is-now' : ''} ${dots[index] === 'current' && tone ? `is-${tone}` : ''}`}
             title={STAGE_LABELS[stage]}
           />
         ))}
       </div>
+      {stageDisagrees ? <span className="range-disagree" title="Emails disagree">!</span> : null}
       {pending ? <span className="butter-pip" aria-hidden="true" /> : null}
     </div>
   );
 }
 
-function StatusFlag({ fact }: { fact: { text: string; unchecked: boolean } }) {
+function AttentionMark({ fact }: { fact: { unchecked: boolean; disagree: boolean } }) {
+  if (fact.disagree) {
+    return (
+      <span className="range-disagree" title="Emails disagree">
+        !
+      </span>
+    );
+  }
+  if (fact.unchecked) return <span className="butter-pip" aria-hidden="true" />;
+  return null;
+}
+
+function StatusFlag({ fact }: { fact: { text: string; unchecked: boolean; disagree: boolean } }) {
   const badge = statusBadge(fact.text);
   if (!badge) return null;
   return (
-    <span className={`range-flag is-${badge.tone} ${fact.unchecked ? 'is-unchecked' : ''}`}>
+    <span className={`range-flag is-${badge.tone} ${fact.unchecked || fact.disagree ? 'is-unchecked' : ''}`}>
       <span className="range-flag-swatch" />
-      {fact.unchecked ? <span className="butter-pip" aria-hidden="true" /> : null}
+      <AttentionMark fact={fact} />
       <span>{badge.label}</span>
     </span>
   );

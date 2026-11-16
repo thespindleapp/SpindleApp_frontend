@@ -32,6 +32,10 @@ function isUnauthorized(err: unknown) {
   return err instanceof ApiError && err.status === 401;
 }
 
+function isRateLimited(err: unknown) {
+  return err instanceof ApiError && err.status === 429;
+}
+
 function rememberWorkspace(workspaces: Workspace[]) {
   const current = getWorkspaceId();
   if (current && workspaces.some((workspace) => workspace.id === current)) return;
@@ -97,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       clearAccessToken();
       if (id !== generation.current) return;
-      setStatus(isUnauthorized(err) ? 'anonymous' : 'unavailable');
+      setStatus(isUnauthorized(err) || isRateLimited(err) ? 'anonymous' : 'unavailable');
     }
   }
 
@@ -183,8 +187,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus('loading');
       void verify(next);
     }
+    let lastSessionCheck = 0;
     function onFocus() {
       if (statusRef.current !== 'authenticated' || refreshInFlight.current) return;
+      const now = Date.now();
+      if (now - lastSessionCheck < 20_000) return;
+      lastSessionCheck = now;
       void api.me().then(
         (session) => {
           if (statusRef.current === 'authenticated') rememberWorkspace(session.workspaces);

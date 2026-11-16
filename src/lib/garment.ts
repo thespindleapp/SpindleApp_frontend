@@ -26,6 +26,7 @@ const NAMED_COLOURS: Record<string, string> = {
   beige: '#D8CDB8',
   brown: '#8A6A4A',
   rust: '#A4552F',
+  orange: '#C45C26',
   coral: '#C97F66',
   pink: '#D8A5A1',
   red: '#A45048',

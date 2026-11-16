@@ -1,15 +1,28 @@
 import type { StyleFieldView } from '../types';
 
-export const TIMELINE_STAGES = ['LAB_DIP', 'PROTO', 'SMS', 'PP', 'BULK', 'SHIP'] as const;
+export const TIMELINE_STAGES = [
+  'TECH_PACK',
+  'COSTING',
+  'LAB_DIP',
+  'STRIKE_OFF',
+  'FIT_SAMPLE',
+  'PP',
+  'TOP',
+  'BULK',
+  'SHIP',
+] as const;
 export type TimelineStage = (typeof TIMELINE_STAGES)[number];
 
 export type StageTimelineState = 'approved' | 'mentioned' | 'proposed' | 'not_recorded';
 
 const STAGE_ALIASES: Record<TimelineStage, string[]> = {
+  TECH_PACK: ['tech pack', 'tech-pack', 'techpack'],
+  COSTING: ['costing stage', 'initial costing'],
   LAB_DIP: ['lab dip', 'lab-dip', 'labdip'],
-  PROTO: ['proto sample', 'proto', 'fit sample'],
-  SMS: ['strike-off', 'strike off', 'sms'],
+  STRIKE_OFF: ['strike-off', 'strike off', 'strikeoff'],
+  FIT_SAMPLE: ['fit sample', 'fit-sample'],
   PP: ['pp sample', 'pre-production', 'preproduction', 'pp'],
+  TOP: ['top of production', 'top-of-production', 'top sample', 'top stage'],
   BULK: ['bulk production', 'bulk'],
   SHIP: ['ex-factory', 'shipped', 'shipment'],
 };
@@ -18,6 +31,11 @@ const APPROVAL_VERB = '(approved|approval|completed|complete|checked|cleared|sig
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function conditionalApproval(text: string, index: number) {
+  const before = text.slice(Math.max(0, index - 48), index);
+  return /\b(?:once|when|after|until|if|unless|before)\b/i.test(before);
 }
 
 function aliasPattern(alias: string) {
@@ -42,7 +60,7 @@ function explicitApprovalSnippet(text: string, alias: string) {
   ];
   for (const pattern of patterns) {
     const match = pattern.exec(text);
-    if (match) {
+    if (match && !conditionalApproval(text, match.index)) {
       const start = Math.max(0, match.index - 12);
       const end = Math.min(text.length, match.index + match[0].length + 12);
       return text.slice(start, end).replace(/\s+/g, ' ').trim();

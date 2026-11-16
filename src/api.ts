@@ -1,12 +1,15 @@
 import type { InboxEmail } from './lib/inbox';
+import type { InboxProgress } from './lib/inbox-progress';
 import type {
   Brand,
   ConfirmAllResult,
   EmailAccount,
+  EmailAttachment,
   EmailDetail,
   InvitationPreview,
   CreateStyleFromEmailInput,
   CreateStyleFromEmailResult,
+  DuplicateReview,
   StyleCard,
   StyleDraft,
   StyleEmail,
@@ -188,7 +191,10 @@ function noteUnauthorized(path: string, status: number) {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
+  const isForm = typeof FormData !== 'undefined' && init.body instanceof FormData;
+  if (!isForm) {
+    headers.set('Content-Type', 'application/json');
+  }
   const token = getToken();
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
@@ -278,6 +284,30 @@ export const api = {
   listStyleOnBoard(id: string) {
     return request<StyleCard>(`/api/v1/styles/${id}/list`, { method: 'POST' });
   },
+  markNotAStyle(id: string) {
+    return request<{ removedStyleId: string; releasedEmailIds: string[] }>(`/api/v1/styles/${id}/not-a-style`, {
+      method: 'POST',
+      body: '{}',
+    });
+  },
+  inboxProgress() {
+    return request<InboxProgress>('/api/v1/emails/progress');
+  },
+  reprocessEmail(emailId: string) {
+    return request<{ queued: boolean; emailId: string }>(`/api/v1/emails/${emailId}/reprocess`, {
+      method: 'POST',
+      body: '{}',
+    });
+  },
+  listEmailDuplicates(emailId: string) {
+    return request<DuplicateReview[]>(`/api/v1/emails/${emailId}/duplicates`);
+  },
+  dismissDuplicate(reviewId: string) {
+    return request<DuplicateReview>(`/api/v1/duplicates/${reviewId}/dismiss`, { method: 'POST', body: '{}' });
+  },
+  confirmDuplicate(reviewId: string) {
+    return request<DuplicateReview>(`/api/v1/duplicates/${reviewId}/confirm`, { method: 'POST', body: '{}' });
+  },
   async listInboxEmails() {
     const all: InboxEmail[] = [];
     for (let page = 1; page <= 10; page += 1) {
@@ -337,7 +367,21 @@ export const api = {
   getEmail(id: string) {
     return request<EmailDetail>(`/api/v1/emails/${id}`);
   },
-  async getAttachmentBlob(emailId: string, attachmentId: string) {
+  uploadEmailAttachments(emailId: string, files: File[]) {
+    const body = new FormData();
+    for (const file of files) {
+      body.append('files', file, file.name);
+    }
+    return request<EmailAttachment[]>(`/api/v1/emails/${emailId}/attachments`, { method: 'POST', body });
+  },
+  uploadStyleAttachments(styleId: string, files: File[]) {
+    const body = new FormData();
+    for (const file of files) {
+      body.append('files', file, file.name);
+    }
+    return request<EmailAttachment[]>(`/api/v1/styles/${styleId}/attachments`, { method: 'POST', body });
+  },
+  async getAttachmentBlob(emailId: string | null, attachmentId: string, options?: { download?: boolean }) {
     const headers = new Headers();
     const token = getToken();
     if (token) {
@@ -347,11 +391,15 @@ export const api = {
     if (workspaceId) {
       headers.set('X-Workspace-Id', workspaceId);
     }
-    const response = await fetch(`/api/v1/emails/${emailId}/attachments/${attachmentId}/content`, {
+    const download = options?.download ? '?download=1' : '';
+    const path = emailId
+      ? `/api/v1/emails/${emailId}/attachments/${attachmentId}/content${download}`
+      : `/api/v1/attachments/${attachmentId}/content${download}`;
+    const response = await fetch(path, {
       headers,
       credentials: 'include',
     });
-    noteUnauthorized(`/api/v1/emails/${emailId}/attachments/${attachmentId}/content`, response.status);
+    noteUnauthorized(path, response.status);
     if (!response.ok) {
       throw new ApiError(response.status, 'Unable to open attachment');
     }
@@ -366,6 +414,18 @@ export const api = {
     return request<CreateStyleFromEmailResult>(`/api/v1/emails/${emailId}/styles`, {
       method: 'POST',
       body: JSON.stringify(input),
+    });
+  },
+  assignEmailStyle(emailId: string, body: { styleId?: string; styleNumber?: string }) {
+    return request<InboxEmail>(`/api/v1/emails/${emailId}/assign-style`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  markEmailNotAboutStyle(emailId: string) {
+    return request<InboxEmail>(`/api/v1/emails/${emailId}/not-about-a-style`, {
+      method: 'POST',
+      body: '{}',
     });
   },
   listEmailAccounts() {

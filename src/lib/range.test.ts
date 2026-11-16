@@ -37,7 +37,7 @@ function style(overrides: Partial<StyleCard> = {}): StyleCard {
 }
 
 describe('range order totals', () => {
-  it('groups confirmed GBP and USD separately and drops unstated currency', () => {
+  it('adds checked costs in GBP and leaves unchecked costs out', () => {
     const gbp = style({
       id: 'gbp',
       fields: {
@@ -93,15 +93,57 @@ describe('range order totals', () => {
     });
 
     const totals = orderTotals([gbp, usd, bare, proposed]);
-    expect(totals).toEqual([
-      { currency: 'GBP', total: 20 },
-      { currency: 'USD', total: 20 },
-    ]);
-    expect(totals.map(formatOrderTotal)).toEqual(['£20', '$20']);
+    expect(totals).toEqual([{ currency: 'GBP', total: 9920 }]);
+    expect(totals.map(formatOrderTotal)).toEqual(['£9,920.00']);
     expect(formatOrderTotal(totals[0]!).includes('$')).toBe(false);
-    expect(lineOrderValue(bare)).toBeNull();
+    expect(lineOrderValue(bare)).toBe('£9,900.00');
+    expect(lineOrderValue(usd)).toBeNull();
     expect(lineOrderValue(proposed)).toBeNull();
-    expect(lineOrderValue(gbp)).toBe('£20');
+    expect(lineOrderValue(gbp)).toBe('£20.00');
+  });
+
+  it('sums awkward pence in integers and leaves an unchecked foreign currency out', () => {
+    const pence = style({
+      id: 'pence',
+      fields: {
+        quantity: field({ field: 'quantity', proposedValue: 3, confirmedValue: 3, displayValue: 3 }),
+        costFob: field({ field: 'costFob', proposedValue: 0.1, confirmedValue: 0.1, displayValue: 0.1 }),
+        currency: field({ field: 'currency', proposedValue: 'GBP', confirmedValue: 'GBP', displayValue: 'GBP' }),
+      },
+    });
+    const another = style({
+      id: 'another',
+      fields: {
+        quantity: field({ field: 'quantity', proposedValue: 1, confirmedValue: 1, displayValue: 1 }),
+        costFob: field({ field: 'costFob', proposedValue: 0.2, confirmedValue: 0.2, displayValue: 0.2 }),
+      },
+    });
+    const foreign = style({
+      id: 'foreign',
+      fields: {
+        quantity: field({ field: 'quantity', proposedValue: 2, confirmedValue: 2, displayValue: 2 }),
+        costFob: field({
+          field: 'costFob',
+          confirmationStatus: 'PROPOSED',
+          proposedValue: 50,
+          confirmedValue: null,
+          displayValue: 50,
+        }),
+        currency: field({
+          field: 'currency',
+          confirmationStatus: 'PROPOSED',
+          proposedValue: 'USD',
+          confirmedValue: null,
+          displayValue: 'USD',
+        }),
+      },
+    });
+    const totals = orderTotals([pence, another, foreign]);
+    expect(totals).toEqual([{ currency: 'GBP', total: 0.5 }]);
+    expect(formatOrderTotal(totals[0]!)).toBe('£0.50');
+    expect(
+      displayFact(foreign.fields.costFob, { money: true, currency: foreign.fields.currency }),
+    ).toEqual({ text: '50', unchecked: true, disagree: false });
   });
 
   it('hides a total when nothing has a confirmed currency', () => {
@@ -125,11 +167,11 @@ describe('unchecked range values', () => {
           currency: field({ field: 'currency', confirmationStatus: 'NOT_STATED', confirmedValue: null, displayValue: 'USD' }),
         },
       ),
-    ).toEqual({ text: '12.51', unchecked: true });
+    ).toEqual({ text: '£12.51', unchecked: true, disagree: false });
 
     expect(
       displayFact(field({ confirmationStatus: 'CONFIRMED', proposedValue: 12, confirmedValue: 12, displayValue: 12 })),
-    ).toEqual({ text: '12', unchecked: false });
+    ).toEqual({ text: '12', unchecked: false, disagree: false });
   });
 
   it('lists outstanding confirmations and skips fields with nothing to check', () => {

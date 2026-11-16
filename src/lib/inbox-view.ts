@@ -2,9 +2,22 @@ import type { ConfirmationRow, StyleDraft } from '../types';
 import { isReadingStatus } from './empty';
 import type { InboxEmail } from './inbox';
 
-export type InboxException = 'which-style' | 'disagree' | 'could-not-read';
+export type InboxException =
+  | 'which-style'
+  | 'disagree'
+  | 'could-not-read'
+  | 'possible-duplicate'
+  | 'missing-file'
+  | 'unsupported';
 
-export type InboxFilter = 'all' | 'needs';
+export type InboxFilter = 'all' | 'needs' | 'filed';
+
+export function emailFiling(metadata: unknown): 'not_a_style' | 'not_about_a_style' | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+  const filing = (metadata as { filing?: unknown }).filing;
+  if (filing === 'not_a_style' || filing === 'not_about_a_style') return filing;
+  return null;
+}
 
 export interface MailThread {
   email: InboxEmail;
@@ -14,11 +27,21 @@ export interface MailThread {
   identity: ConfirmationRow | null;
 }
 
-const EXCEPTION_ORDER: InboxException[] = ['disagree', 'which-style', 'could-not-read'];
+const EXCEPTION_ORDER: InboxException[] = [
+  'disagree',
+  'possible-duplicate',
+  'which-style',
+  'missing-file',
+  'unsupported',
+  'could-not-read',
+];
 
 export const EXCEPTION_LABEL: Record<InboxException, string> = {
   disagree: 'Emails disagree',
+  'possible-duplicate': 'Possible duplicate',
   'which-style': 'Which style?',
+  'missing-file': 'Missing file',
+  unsupported: 'Unsupported file',
   'could-not-read': 'Could not read',
 };
 
@@ -116,11 +139,17 @@ function disagreementsFor(ids: Set<string>, confirmations: ConfirmationRow[]): C
 function exceptionsFor(email: InboxEmail, identity: ConfirmationRow | null, disagreements: ConfirmationRow[]): InboxException[] {
   const kinds: InboxException[] = [];
   if (disagreements.length > 0) kinds.push('disagree');
+  if (email.hasDuplicateReview || email.duplicateVerdict === 'POSSIBLE') kinds.push('possible-duplicate');
   const readable = !isReadingStatus(email.status) && email.status !== 'IGNORED';
-  if (readable && !email.style && (identity || email.status === 'NEEDS_CONFIRMATION')) {
+  const dismissed = emailFiling(email.metadata);
+  if (readable && !dismissed && !email.style && (identity || email.status === 'NEEDS_CONFIRMATION')) {
     kinds.push('which-style');
   }
-  if (email.status === 'FAILED') kinds.push('could-not-read');
+  if (email.issueKind === 'MISSING_ATTACHMENT') kinds.push('missing-file');
+  if (email.issueKind === 'UNSUPPORTED_FORMAT') kinds.push('unsupported');
+  if (email.status === 'FAILED' || email.issueKind === 'REPEATED_FAILURE' || email.issueKind === 'PARSE_FAILURE') {
+    kinds.push('could-not-read');
+  }
   return EXCEPTION_ORDER.filter((kind) => kinds.includes(kind));
 }
 
@@ -161,6 +190,7 @@ export function groupMail(emails: InboxEmail[], confirmations: ConfirmationRow[]
 }
 
 export function applyDraftChoice(thread: MailThread, draft: Pick<StyleDraft, 'disposition'> | null | undefined): MailThread {
+  if (emailFiling(thread.email.metadata)) return thread;
   if (!draftNeedsStyleChoice(draft, Boolean(thread.email.style))) return thread;
   if (isReadingStatus(thread.email.status) || thread.email.status === 'FAILED' || thread.email.status === 'IGNORED') {
     return thread;
@@ -170,8 +200,35 @@ export function applyDraftChoice(thread: MailThread, draft: Pick<StyleDraft, 'di
   return { ...thread, exceptions };
 }
 
+export function threadIsFiled(thread: MailThread): boolean {
+  return Boolean(thread.email.style) && thread.exceptions.length === 0 && !isReadingStatus(thread.email.status);
+}
+
+export interface FiledGroup {
+  key: string;
+  label: string;
+  threads: MailThread[];
+}
+
+export function groupFiledThreads(threads: MailThread[]): FiledGroup[] {
+  const groups = new Map<string, FiledGroup>();
+  for (const thread of threads) {
+    const key = thread.email.style?.id ?? 'unlinked';
+    const style = thread.email.style;
+    const label = style ? styleChip(thread.email) : 'No style';
+    const existing = groups.get(key);
+    if (existing) {
+      existing.threads.push(thread);
+    } else {
+      groups.set(key, { key, label, threads: [thread] });
+    }
+  }
+  return [...groups.values()];
+}
+
 export function visibleThreads(threads: MailThread[], filter: InboxFilter): MailThread[] {
   if (filter === 'needs') return threads.filter((thread) => thread.exceptions.length > 0);
+  if (filter === 'filed') return threads.filter(threadIsFiled);
   return threads;
 }
 

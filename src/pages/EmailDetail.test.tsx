@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../api';
@@ -9,6 +10,7 @@ vi.mock('../api', () => ({
   api: {
     getEmail: vi.fn(),
     getAttachmentBlob: vi.fn(async () => new Blob([new Uint8Array([1])], { type: 'image/png' })),
+    reprocessEmail: vi.fn(),
   },
 }));
 
@@ -51,7 +53,7 @@ function attachment(overrides: Partial<EmailAttachment>): EmailAttachment {
 }
 
 describe('Email detail', () => {
-  it('offers New from email on an unassigned email', async () => {
+  it('returns an unassigned email to the inbox without a new-style form', async () => {
     vi.mocked(api.getEmail).mockResolvedValue(email());
     render(
       <MemoryRouter initialEntries={['/emails/email-1']}>
@@ -60,9 +62,8 @@ describe('Email detail', () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect((await screen.findByRole('link', { name: 'New from email' })).getAttribute('href')).toBe(
-      '/emails/email-1/new',
-    );
+    expect(await screen.findByRole('link', { name: 'Back to inbox' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'New from email' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Back to inbox' }).getAttribute('href')).toBe('/inbox');
   });
 
@@ -116,5 +117,28 @@ describe('Email detail', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByText('No attachments.')).toBeTruthy();
+  });
+
+  it('keeps a failed email on screen and can queue it again', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getEmail).mockResolvedValue(
+      email({
+        status: 'FAILED',
+        issueKind: 'PARSE_FAILURE',
+        issueReason: 'The parser stopped on this message.',
+      }),
+    );
+    vi.mocked(api.reprocessEmail).mockResolvedValue({ queued: true, emailId: 'email-1' });
+    render(
+      <MemoryRouter initialEntries={['/emails/email-1']}>
+        <Routes>
+          <Route path="/emails/:emailId" element={<EmailDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('The parser stopped on this message.')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(api.reprocessEmail).toHaveBeenCalledWith('email-1');
+    expect(await screen.findByText('Queued to be read again.')).toBeTruthy();
   });
 });

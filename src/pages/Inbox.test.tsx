@@ -16,6 +16,9 @@ vi.mock('../api', () => ({
     createBrand: vi.fn(),
     listStyleOnBoard: vi.fn(),
     createStyleFromEmail: vi.fn(),
+    getStyle: vi.fn().mockResolvedValue({ fields: {} }),
+    assignEmailStyle: vi.fn(),
+    markEmailNotAboutStyle: vi.fn(),
     listEmailAccounts: vi.fn().mockResolvedValue([]),
     getStyleDraft: vi.fn().mockResolvedValue({
       emailId: 'email-1',
@@ -46,6 +49,24 @@ vi.mock('../api', () => ({
     keep: vi.fn(),
     reject: vi.fn(),
     listEmails: vi.fn().mockResolvedValue([]),
+    inboxProgress: vi.fn().mockResolvedValue({
+      received: 0,
+      queued: 0,
+      processing: 0,
+      processed: 0,
+      review: 0,
+      failed: 0,
+      ignored: 0,
+      progress: 0,
+      active: false,
+      complete: false,
+      state: 'empty',
+      openDuplicates: 0,
+    }),
+    reprocessEmail: vi.fn(),
+    listEmailDuplicates: vi.fn().mockResolvedValue([]),
+    dismissDuplicate: vi.fn(),
+    confirmDuplicate: vi.fn(),
   },
 }));
 
@@ -104,8 +125,9 @@ describe('Inbox', () => {
     );
 
     expect((await screen.findAllByRole('link', { name: 'Style 3401069' })).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: 'New from email' }).getAttribute('href')).toBe('/emails/email-1/new');
+    expect(screen.queryByRole('link', { name: 'New from email' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Use this style' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Not about a style' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Add to Range Board' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Use this style' }));
     expect(api.confirm).toHaveBeenCalled();
@@ -113,7 +135,7 @@ describe('Inbox', () => {
     expect(api.createStyleFromEmail).not.toHaveBeenCalled();
   });
 
-  it('adds an identity-confirmed style to the Range Board once', async () => {
+  it('opens a filed style without an add-to-board action', async () => {
     const user = userEvent.setup();
     const unlisted: InboxEmail = {
       ...received,
@@ -137,11 +159,10 @@ describe('Inbox', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('button', { name: 'Add to Range Board' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Open 3401069' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add to Range Board' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'New from email' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Add to Range Board' }));
-    expect(api.listStyleOnBoard).toHaveBeenCalledWith('style-1');
-    expect(api.listStyleOnBoard).toHaveBeenCalledTimes(1);
+    expect(api.listStyleOnBoard).not.toHaveBeenCalled();
     expect(screen.getByRole('option', { name: /Style 3401069/ })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: /Needs you/ }));
     expect(await screen.findByRole('heading', { name: 'Nothing needs you' })).toBeTruthy();
@@ -203,7 +224,7 @@ describe('Inbox', () => {
 
     expect(await screen.findByText('Reading')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Style 3401069' })).toBeTruthy();
-    expect(screen.getByText('Nothing goes on the board until you check it.')).toBeTruthy();
+    expect(screen.getByText(/filed on the Range board when the read finishes/)).toBeTruthy();
     expect(screen.queryByText('£12.51')).toBeNull();
     expect(screen.queryByText('Sun Embroidered Dress')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Use this style' })).toBeNull();
@@ -281,7 +302,9 @@ describe('Inbox', () => {
     await user.click(screen.getByRole('button', { name: /Needs you/ }));
     expect(screen.getByRole('option', { name: /Which style/ })).toBeTruthy();
     expect(screen.queryByRole('option', { name: /Cost update/ })).toBeNull();
-    expect(screen.getByRole('link', { name: 'New from email' }).getAttribute('href')).toBe('/emails/email-open/new');
+    expect(screen.getByLabelText('Tell me which style it is about')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Not about a style' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'New from email' })).toBeNull();
   });
 
   it('shows a real disagreement without confirming either value', async () => {
@@ -397,13 +420,13 @@ describe('Inbox', () => {
     );
 
     expect((await screen.findAllByRole('link', { name: 'Lab dips round 2' })).length).toBeGreaterThan(0);
-    const brand = await screen.findByLabelText('Brand');
-    await user.click(brand);
+    const styleNumber = await screen.findByLabelText('Tell me which style it is about');
+    await user.click(styleNumber);
     await user.keyboard('j');
     expect(screen.getAllByRole('link', { name: 'Lab dips round 2' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Unreadable scan' })).toBeNull();
 
-    brand.blur();
+    styleNumber.blur();
     await user.keyboard('j');
     expect(await screen.findByRole('link', { name: 'Unreadable scan' })).toBeTruthy();
     expect(screen.getByText('Spindle could not read this email. The file is still here to open.')).toBeTruthy();
@@ -458,11 +481,55 @@ describe('Inbox', () => {
     );
 
     expect((await screen.findAllByText('Which style?')).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: 'Open style' }).getAttribute('href')).toBe('/styles/style-9');
+    expect(screen.getByRole('button', { name: 'This style' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Not about a style' })).toBeTruthy();
     expect(screen.queryByText('12.51')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Not a style' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Not about a style' })).toBeNull();
     expect(api.confirm).not.toHaveBeenCalled();
     expect(api.createStyleFromEmail).not.toHaveBeenCalled();
+  });
+
+  it('shows persisted batch progress and retries a failed email without dropping it', async () => {
+    const user = userEvent.setup();
+    const failed: InboxEmail = {
+      ...received,
+      id: 'email-failed',
+      subject: 'Tech pack',
+      status: 'FAILED',
+      issueKind: 'REPEATED_FAILURE',
+      issueReason: 'Processing failed 5 times. Automatic retries have stopped.',
+      style: null,
+    };
+    vi.mocked(api.listInboxEmails).mockResolvedValue([failed]);
+    vi.mocked(api.listConfirmations).mockResolvedValue([]);
+    vi.mocked(api.inboxProgress).mockResolvedValue({
+      received: 1200,
+      queued: 0,
+      processing: 0,
+      processed: 1100,
+      review: 90,
+      failed: 10,
+      ignored: 0,
+      progress: 1,
+      active: false,
+      complete: true,
+      state: 'completed_with_errors',
+      openDuplicates: 0,
+    });
+    vi.mocked(api.reprocessEmail).mockResolvedValue({ queued: true, emailId: 'email-failed' });
+
+    render(
+      <MemoryRouter>
+        <InboxPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('1200 received')).toBeTruthy();
+    expect(screen.getByText('10 could not be read')).toBeTruthy();
+    expect(screen.getByText('Showing the latest 1 of 1200.')).toBeTruthy();
+    expect((await screen.findAllByText(/Automatic retries have stopped/)).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(api.reprocessEmail).toHaveBeenCalledWith('email-failed');
+    expect(await screen.findByText('Queued to be read again.')).toBeTruthy();
   });
 });

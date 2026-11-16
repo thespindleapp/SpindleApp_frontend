@@ -4,6 +4,7 @@ import { api } from '../api';
 import {
   correctionPayload,
   fieldLabel,
+  formatFactValue,
   formatFieldValue,
   isActionableConfirmationStatus,
   revisionLabel,
@@ -24,11 +25,13 @@ export function FieldBlock({
   revisions,
   onChanged,
   compact = false,
+  currency = null,
 }: {
   field: StyleFieldView;
   revisions: FieldRevision[];
   onChanged: () => void;
   compact?: boolean;
+  currency?: StyleFieldView | null;
 }) {
   const [correcting, setCorrecting] = useState(false);
   const [draft, setDraft] = useState('');
@@ -36,6 +39,7 @@ export function FieldBlock({
   const [error, setError] = useState<string | null>(null);
 
   const evidence = evidenceText(field.evidence);
+  const showValue = (value: unknown) => formatFactValue(field.field, value, field.field === 'costFob' ? currency : undefined);
   const canAct = Boolean(field.confirmationId) && isActionableConfirmationStatus(field.confirmationStatus);
   const needsReview = field.confirmationStatus === 'NEEDS_REVIEW';
   const showEvidence = showResolvedProposalEvidence(field);
@@ -58,7 +62,7 @@ export function FieldBlock({
   function startEdit() {
     setCorrecting(!correcting);
     setDraft(
-      formatFieldValue(field.confirmationStatus === 'NEEDS_REVIEW' ? field.confirmedValue : field.proposedValue),
+      showValue(field.confirmationStatus === 'NEEDS_REVIEW' ? field.confirmedValue : field.proposedValue),
     );
   }
 
@@ -90,11 +94,11 @@ export function FieldBlock({
           <b>{fieldLabel(field.field)}</b> —{' '}
           {needsReview ? (
             <>
-              {formatFieldValue(field.confirmedValue)} checked →{' '}
-              <span className="to">{formatFieldValue(field.proposedValue)} from email</span>
+              {showValue(field.confirmedValue)} checked →{' '}
+              <span className="to">{showValue(field.proposedValue)} from email</span>
             </>
           ) : (
-            <span className="to">From email {formatFieldValue(field.proposedValue ?? field.displayValue)}</span>
+            <span className="to">From email {showValue(field.proposedValue ?? field.displayValue)}</span>
           )}
           {showEvidence && (evidence || field.emailId) ? (
             <div className="evidence">
@@ -118,7 +122,7 @@ export function FieldBlock({
                 disabled={busy}
                 onClick={() => void run(() => api.keep(field.confirmationId!))}
               >
-                Looks right {formatFieldValue(field.confirmedValue)}
+                Looks right {showValue(field.confirmedValue)}
               </button>
               <button
                 className="btn btn-accept"
@@ -126,7 +130,7 @@ export function FieldBlock({
                 disabled={busy}
                 onClick={() => void run(() => api.confirm(field.confirmationId!, field.proposedValue))}
               >
-                Looks right {formatFieldValue(field.proposedValue)}
+                Looks right {showValue(field.proposedValue)}
               </button>
             </>
           ) : (
@@ -169,21 +173,21 @@ export function FieldBlock({
         {needsReview ? (
           <>
             <div>
-              Checked: <strong>{formatFieldValue(field.confirmedValue)}</strong>
+              Checked: <strong>{showValue(field.confirmedValue)}</strong>
             </div>
             <div>
-              New from email: <em>{formatFieldValue(field.proposedValue)}</em>
+              New from email: <em>{showValue(field.proposedValue)}</em>
             </div>
           </>
         ) : field.confirmationStatus === 'CONFIRMED' ? (
           <div>
-            <strong>{formatFieldValue(field.confirmedValue ?? field.displayValue)}</strong>
+            <strong>{showValue(field.confirmedValue ?? field.displayValue)}</strong>
           </div>
         ) : field.confirmationStatus === 'REJECTED' ? (
-          <div>Dismissed: {formatFieldValue(field.proposedValue)}</div>
+          <div>Dismissed: {showValue(field.proposedValue)}</div>
         ) : (
           <div>
-            From email: <em>{formatFieldValue(field.proposedValue ?? field.displayValue)}</em>
+            From email: <em>{showValue(field.proposedValue ?? field.displayValue)}</em>
           </div>
         )}
 
@@ -211,7 +215,7 @@ export function FieldBlock({
                   disabled={busy}
                   onClick={() => void run(() => api.keep(field.confirmationId!))}
                 >
-                  Looks right {formatFieldValue(field.confirmedValue)}
+                  Looks right {showValue(field.confirmedValue)}
                 </button>
                 <button
                   className="btn btn-accent"
@@ -219,7 +223,7 @@ export function FieldBlock({
                   disabled={busy}
                   onClick={() => void run(() => api.confirm(field.confirmationId!, field.proposedValue))}
                 >
-                  Looks right {formatFieldValue(field.proposedValue)}
+                  Looks right {showValue(field.proposedValue)}
                 </button>
               </>
             ) : (
@@ -283,7 +287,7 @@ export function FieldBlock({
           <div className="evidence">
             {revisions.map((revision) => (
               <div key={revision.id}>
-                {formatFieldValue(revision.newValue)} · {revisionLabel(revision)} ·{' '}
+                {showValue(revision.newValue)} · {revisionLabel(revision)} ·{' '}
                 {new Date(revision.createdAt).toLocaleDateString()}
               </div>
             ))}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardColumnForStyle, stageDots, unresolvedCandidateCards, unresolvedIdentityRows } from './board';
+import { boardColumnForStyle, legacyStageValue, stageDots, unresolvedCandidateCards, unresolvedIdentityRows } from './board';
 import type { ConfirmationRow, StyleFieldView } from '../types';
 
 function stage(overrides: Partial<StyleFieldView>): StyleFieldView {
@@ -29,9 +29,19 @@ describe('board column placement', () => {
   });
 
   it('marks only the stored stage as current', () => {
-    expect(stageDots('PP')).toEqual(['done', 'done', 'done', 'current', 'upcoming', 'upcoming']);
-    expect(stageDots('LAB_DIP')).toEqual(['current', 'upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming']);
-    expect(stageDots('UNCONFIRMED')).toEqual(['upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming']);
+    expect(stageDots('PP')).toEqual(['done', 'done', 'done', 'done', 'done', 'current', 'upcoming', 'upcoming', 'upcoming']);
+    expect(stageDots('LAB_DIP')).toEqual(['done', 'done', 'current', 'upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming']);
+    expect(stageDots('UNCONFIRMED')).toEqual([
+      'upcoming',
+      'upcoming',
+      'upcoming',
+      'upcoming',
+      'upcoming',
+      'upcoming',
+      'upcoming',
+      'upcoming',
+      'upcoming',
+    ]);
   });
 
   it('places a style by its confirmed stage', () => {
@@ -55,14 +65,46 @@ describe('board column placement', () => {
         fields: {
           stage: stage({
             confirmationStatus: 'NEEDS_REVIEW',
-            confirmedValue: 'PROTO',
-            displayValue: 'PROTO',
+            confirmedValue: 'PP',
+            displayValue: 'PP',
             proposedValue: 'BULK',
             proposedDiffersFromConfirmed: true,
           }),
         },
       }),
-    ).toBe('PROTO');
+    ).toBe('PP');
+  });
+
+  it('does not place an older Proto, SMS, or Inline record on the nine stages', () => {
+    const proto = {
+      fields: {
+        stage: stage({
+          confirmationStatus: 'CONFIRMED',
+          confirmedValue: 'PROTO',
+          displayValue: 'PROTO',
+          proposedValue: 'PROTO',
+        }),
+      },
+    };
+    expect(boardColumnForStyle(proto)).toBe('UNCONFIRMED');
+    expect(legacyStageValue(proto)).toBe('PROTO');
+    expect(stageDots(boardColumnForStyle(proto)).some((dot) => dot !== 'upcoming')).toBe(false);
+  });
+
+  it('flags an unconfirmed Proto proposal and does not treat it as complete', () => {
+    const proposed = {
+      fields: {
+        stage: stage({
+          confirmationStatus: 'PROPOSED',
+          proposedValue: 'PROTO',
+          confirmedValue: null,
+          displayValue: 'PROTO',
+        }),
+      },
+    };
+    expect(boardColumnForStyle(proposed)).toBe('UNCONFIRMED');
+    expect(legacyStageValue(proposed)).toBe('PROTO');
+    expect(stageDots('UNCONFIRMED').every((dot) => dot === 'upcoming')).toBe(true);
   });
 });
 

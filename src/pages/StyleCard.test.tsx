@@ -193,7 +193,7 @@ describe('style card checking presentation', () => {
     expect(facts).not.toContain('$19.25');
   });
 
-  it('formats a checked GBP cost with a pound sign and a checked USD cost with a dollar sign', async () => {
+  it('formats a checked GBP cost with £ and leaves a checked foreign code unlabelled', async () => {
     await renderCard(
       style({
         needsConfirmationCount: 0,
@@ -238,10 +238,12 @@ describe('style card checking presentation', () => {
         },
       }),
     );
-    expect(document.querySelector('.facts-row')?.textContent ?? '').toContain('$19.25');
+    expect(document.querySelector('.facts-row')?.textContent ?? '').toContain('19.25');
+    expect(document.querySelector('.facts-row')?.textContent ?? '').not.toContain('£19.25');
+    expect(document.querySelector('.facts-row')?.textContent ?? '').not.toContain('$');
   });
 
-  it('shows a checked cost as a bare amount when currency is not stated', async () => {
+  it('shows a checked cost in GBP when currency is not stated', async () => {
     await renderCard(
       style({
         needsConfirmationCount: 0,
@@ -264,9 +266,8 @@ describe('style card checking presentation', () => {
       }),
     );
     const facts = document.querySelector('.facts-row')?.textContent ?? '';
-    expect(facts).toContain('19.25');
+    expect(facts).toContain('£19.25');
     expect(facts).not.toContain('$19.25');
-    expect(facts).not.toContain('£19.25');
   });
 
   it('renders persisted email subjects and timestamps instead of mock conversation copy', async () => {
@@ -282,6 +283,148 @@ describe('style card checking presentation', () => {
     await renderCard(style());
     expect(screen.getAllByText('Not recorded').length).toBeGreaterThanOrEqual(5);
     expect(screen.queryByText('Recorded complete')).toBeNull();
+  });
+
+  it('hides the workspace brand, does not treat the sender as the supplier, and keeps a waiting stage unfinished', async () => {
+    await renderCard(
+      style({
+        fields: {
+          stage: field({
+            field: 'stage',
+            confirmationStatus: 'CONFIRMED',
+            proposedValue: 'PROTO',
+            confirmedValue: 'PROTO',
+            displayValue: 'PROTO',
+            evidence: { text: 'will submit the proto sample' },
+          }),
+          status: field({
+            field: 'status',
+            confirmationStatus: 'CONFIRMED',
+            proposedValue: 'waiting',
+            confirmedValue: 'waiting',
+            displayValue: 'waiting',
+          }),
+          color: field({
+            field: 'color',
+            confirmationStatus: 'PROPOSED',
+            proposedValue: 'Burnt Orange',
+            confirmedValue: null,
+            displayValue: 'Burnt Orange',
+          }),
+        },
+      }),
+      [
+        {
+          ...realEmail,
+          bodyText: 'We will submit the proto sample. Submit the BRS sample once bulk is approved.',
+        },
+      ],
+    );
+    expect(screen.queryByText('Reluebelu')).toBeNull();
+    expect(document.querySelector('.style-parties')).toBeNull();
+    expect(document.querySelector('.thread-list')?.textContent).toContain('Vikram');
+    expect(screen.getByText(/Recorded earlier as Proto/)).toBeTruthy();
+    expect(document.querySelector('.range-flag.is-waiting')).toBeTruthy();
+    expect(document.querySelector('.tl-step.waiting')).toBeNull();
+    expect(screen.queryByText('Recorded complete')).toBeNull();
+    expect(document.querySelector('.tl-step.done')).toBeNull();
+    const facts = document.querySelector('.facts-row')?.textContent ?? '';
+    expect(facts).toContain('Burnt Orange');
+    expect(facts).toContain('Not checked yet');
+    expect(facts).toContain('Ex-factory');
+  });
+
+  it('shows all nine stages and keeps a checked waiting status on the confirmed stage', async () => {
+    await renderCard(
+      style({
+        fields: {
+          stage: field({
+            field: 'stage',
+            confirmationStatus: 'CONFIRMED',
+            proposedValue: 'PP',
+            confirmedValue: 'PP',
+            displayValue: 'PP',
+          }),
+          status: field({
+            field: 'status',
+            confirmationStatus: 'CONFIRMED',
+            proposedValue: 'waiting',
+            confirmedValue: 'waiting',
+            displayValue: 'waiting',
+          }),
+        },
+      }),
+    );
+    expect([...document.querySelectorAll('.tl-step .name')].map((node) => node.textContent)).toEqual([
+      'Tech Pack',
+      'Costing',
+      'Lab Dip',
+      'Strike-off',
+      'Fit Sample',
+      'PP Sample',
+      'Top-of-Production',
+      'Bulk',
+      'Ship',
+    ]);
+    expect(document.querySelector('.tl-step.waiting .name')?.textContent).toBe('PP Sample');
+    expect(screen.queryByText('Recorded complete')).toBeNull();
+  });
+
+  it('keeps a conflicting ex-factory date visible and does not show a dollar cost as pounds', async () => {
+    vi.mocked(api.getStyle).mockResolvedValue(
+      style({
+        name: 'Checked dollars',
+        styleNumber: 'USD-HELD',
+        fields: {
+          quantity: field({
+            field: 'quantity',
+            confirmationStatus: 'CONFIRMED',
+            proposedValue: 4,
+            confirmedValue: 4,
+            displayValue: 4,
+          }),
+          costFob: field({
+            field: 'costFob',
+            confirmationStatus: 'CONFIRMED',
+            proposedValue: 5,
+            confirmedValue: 5,
+            displayValue: 5,
+          }),
+          currency: field({
+            field: 'currency',
+            confirmationStatus: 'CONFIRMED',
+            proposedValue: 'USD',
+            confirmedValue: 'USD',
+            displayValue: 'USD',
+          }),
+          deliveryDate: field({
+            field: 'deliveryDate',
+            confirmationStatus: 'NEEDS_REVIEW',
+            proposedValue: '2026-12-01',
+            confirmedValue: '2026-11-01',
+            displayValue: '2026-11-01',
+            proposedDiffersFromConfirmed: true,
+          }),
+        },
+      }),
+    );
+    vi.mocked(api.listEmails).mockResolvedValue([realEmail]);
+    render(
+      <MemoryRouter initialEntries={['/styles/style-1']}>
+        <Routes>
+          <Route path="/styles/:styleId" element={<StyleCardPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('heading', { name: 'Checked dollars' })).toBeTruthy();
+    const facts = document.querySelector('.facts-row')?.textContent ?? '';
+    expect(facts).toContain('2026-11-01');
+    expect(facts).toContain('Emails disagree');
+    expect(facts).toContain('2026-12-01');
+    const commercials = [...document.querySelectorAll('.group-box')].find((box) => box.textContent?.includes('Commercials'));
+    expect(commercials?.textContent).toContain('USD');
+    expect(commercials?.textContent).toContain('Emails disagree');
+    expect(commercials?.textContent).not.toContain('£');
   });
 
   it('can mark a stage complete from explicit approval evidence', async () => {
@@ -307,12 +450,15 @@ describe('style card checking presentation', () => {
     expect(screen.getByText('Recorded complete')).toBeTruthy();
   });
 
-  it('offers Add to Range Board only while the style is unlisted', async () => {
-    await renderCard(style({ listedAt: null }));
-    expect(screen.getByRole('button', { name: 'Add to Range Board' })).toBeTruthy();
+  it('shows the created-from-email banner only for styles filed from mail', async () => {
+    await renderCard(style({ listedAt: null, metadata: { createdFromEmail: true, sourceEmailId: 'email-1' } }));
+    expect(screen.getByText(/Created from an email/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Not a style' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add to Range Board' })).toBeNull();
     cleanup();
     await renderCard(style({ listedAt: '2026-10-01T00:00:00.000Z' }));
-    expect(screen.queryByRole('button', { name: 'Add to Range Board' })).toBeNull();
+    expect(screen.queryByText(/Created from an email/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Not a style' })).toBeNull();
   });
 
   it('shows linked email attachments and hides the hardcoded mock files', async () => {
@@ -349,7 +495,7 @@ describe('style card checking presentation', () => {
     expect(screen.getByRole('heading', { name: /Style REAL-TEST-001/ })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'No emails on this style yet.' })).toBeTruthy();
     expect(screen.getByText(/mentions REAL-TEST-001/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Add to Range Board' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add to Range Board' })).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Looks right' }).length).toBeGreaterThan(0);
     expect(await screen.findByRole('link', { name: 'Register a forwarding address' })).toBeTruthy();
     expect(screen.queryByText('tech_pack_v2.pdf')).toBeNull();

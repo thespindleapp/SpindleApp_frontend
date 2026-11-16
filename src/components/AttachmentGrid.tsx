@@ -1,9 +1,50 @@
-import { useEffect, useRef, useState } from 'react';
-import { canPreviewInline, fileExtension, formatFileSize, isImageAttachment } from '../lib/attachments';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { ATTACHMENT_ACCEPT, canPreviewInline, fileExtension, formatFileSize, isImageAttachment, validateAttachmentFiles } from '../lib/attachments';
 import { api } from '../api';
 import type { EmailAttachment } from '../types';
 
-export type GridAttachment = EmailAttachment & { emailId: string };
+export type GridAttachment = EmailAttachment & { emailId: string | null };
+
+export function AttachmentUpload({
+  disabled = false,
+  onFiles,
+}: {
+  disabled?: boolean;
+  onFiles: (files: File[]) => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = [...(event.target.files ?? [])];
+    event.target.value = '';
+    if (files.length === 0) return;
+    const problem = validateAttachmentFiles(files);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await onFiles(files);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="attach-upload">
+      <label className={`btn btn-secondary${busy || disabled ? ' is-disabled' : ''}`}>
+        {busy ? 'Uploading' : 'Add files'}
+        <input type="file" multiple accept={ATTACHMENT_ACCEPT} disabled={busy || disabled} onChange={(event) => void onChange(event)} />
+      </label>
+      {error ? <span className="error">{error}</span> : null}
+    </span>
+  );
+}
 
 interface AttachmentGridProps {
   attachments: GridAttachment[];
@@ -109,28 +150,49 @@ function AttachmentCard({
 
   const ext = fileExtension(attachment.filename, attachment.mimeType);
 
+  async function download() {
+    onOpenError(null);
+    try {
+      const blob = await api.getAttachmentBlob(attachment.emailId, attachment.id, { download: true });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.rel = 'noopener';
+      link.download = attachment.filename;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      onOpenError(err instanceof Error ? err.message : 'Unable to download attachment');
+    }
+  }
+
   return (
-    <button type="button" className="attach" onClick={() => void open()} aria-label={`Open ${attachment.filename}`}>
-      <div
-        className={`preview${thumbStatus === 'loading' ? ' is-loading' : ''}${thumbStatus === 'error' ? ' is-error' : ''}${thumbUrl ? ' has-thumb' : ''}`}
-      >
-        <span className="ext">{ext}</span>
-        {thumbUrl ? (
-          <img src={thumbUrl} alt={attachment.filename} />
-        ) : thumbStatus === 'loading' ? (
-          <span className="preview-status">Loading</span>
-        ) : thumbStatus === 'error' ? (
-          <span className="preview-status">Preview unavailable</span>
-        ) : (
-          <span className="preview-status">{ext}</span>
-        )}
-      </div>
-      <div className="info">
-        <div className="name">{attachment.filename}</div>
-        <div className="meta">
-          <span>{formatFileSize(attachment.sizeBytes)}</span>
+    <div className="attach">
+      <button type="button" className="attach-open" onClick={() => void open()} aria-label={`Open ${attachment.filename}`}>
+        <div
+          className={`preview${thumbStatus === 'loading' ? ' is-loading' : ''}${thumbStatus === 'error' ? ' is-error' : ''}${thumbUrl ? ' has-thumb' : ''}`}
+        >
+          <span className="ext">{ext}</span>
+          {thumbUrl ? (
+            <img src={thumbUrl} alt={attachment.filename} />
+          ) : thumbStatus === 'loading' ? (
+            <span className="preview-status">Loading</span>
+          ) : thumbStatus === 'error' ? (
+            <span className="preview-status">Preview unavailable</span>
+          ) : (
+            <span className="preview-status">{ext}</span>
+          )}
         </div>
-      </div>
-    </button>
+        <div className="info">
+          <div className="name">{attachment.filename}</div>
+          <div className="meta">
+            <span>{formatFileSize(attachment.sizeBytes)}</span>
+          </div>
+        </div>
+      </button>
+      <button type="button" className="attach-download" onClick={() => void download()} aria-label={`Download ${attachment.filename}`}>
+        Download
+      </button>
+    </div>
   );
 }

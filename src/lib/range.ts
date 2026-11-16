@@ -1,5 +1,5 @@
 import type { StyleCard, StyleFieldView } from '../types';
-import { hasOutstandingProposal, isCheckedStatus, formatFieldValue, formatMoneyAmount, revisionLabel } from './format';
+import { blocksGbp, hasOutstandingProposal, isCheckedStatus, formatFieldValue, formatGbpFromMinor, formatMoneyAmount, moneyMinorUnits, revisionLabel } from './format';
 
 /** Fields a style card can actually carry. Not prototype columns such as drop, mill, or target cost. */
 export const RANGE_FIELDS = [
@@ -70,44 +70,46 @@ export function checkedNumber(field: StyleFieldView | null | undefined): number 
 }
 
 /** A currency symbol is allowed only for a checked code. NOT_STATED contributes nothing. */
-export function checkedCurrencyCode(field: StyleFieldView | null | undefined): string | null {
-  if (!field || !isCheckedStatus(field.confirmationStatus)) return null;
-  const code = String(field.confirmedValue ?? field.displayValue ?? '')
-    .trim()
-    .toUpperCase();
-  if (!code || code === 'NOT_STATED') return null;
-  return code;
-}
-
 export interface OrderTotal {
-  currency: string;
+  currency: 'GBP';
   total: number;
 }
 
+function poundsFromMinor(minor: number): number {
+  const negative = minor < 0;
+  const abs = Math.abs(Math.trunc(minor));
+  const pounds = Math.trunc(abs / 100);
+  const pence = abs % 100;
+  return Number(`${negative ? '-' : ''}${pounds}.${String(pence).padStart(2, '0')}`);
+}
+
 /**
- * Qty × cost, grouped by confirmed currency.
- * Unchecked amounts and unstated currencies are left out. Currencies are never added together.
+ * Checked quantity × checked cost, summed in integer pence, as GBP.
+ * Unchecked amounts are left out. A stated non-GBP currency is left out.
  */
 export function orderTotals(styles: Array<Pick<StyleCard, 'fields'>>): OrderTotal[] {
-  const buckets = new Map<string, number>();
+  let minor = 0;
+  let counted = 0;
   for (const style of styles) {
+    if (blocksGbp(style.fields.currency)) continue;
     const quantity = checkedNumber(style.fields.quantity);
-    const cost = checkedNumber(style.fields.costFob);
-    const currency = checkedCurrencyCode(style.fields.currency);
-    if (quantity == null || cost == null || !currency) continue;
-    buckets.set(currency, (buckets.get(currency) ?? 0) + quantity * cost);
+    const costMinor = moneyMinorUnits(checkedNumber(style.fields.costFob));
+    if (quantity == null || !Number.isInteger(quantity) || quantity <= 0 || costMinor == null || costMinor < 0) {
+      continue;
+    }
+    minor += quantity * costMinor;
+    counted += 1;
   }
-  return [...buckets.entries()]
-    .map(([currency, total]) => ({ currency, total }))
-    .sort((left, right) => left.currency.localeCompare(right.currency));
+  if (counted === 0) return [];
+  return [{ currency: 'GBP', total: poundsFromMinor(minor) }];
 }
 
 export function formatOrderTotal(total: OrderTotal): string {
-  return formatMoneyAmount(total.total, {
-    confirmationStatus: 'CONFIRMED',
-    confirmedValue: total.currency,
-    displayValue: total.currency,
-  });
+  const text = total.total.toFixed(2);
+  const negative = text.startsWith('-');
+  const [pounds, pence] = text.replace('-', '').split('.');
+  const minor = (negative ? -1 : 1) * (Number(pounds) * 100 + Number(pence));
+  return formatGbpFromMinor(minor);
 }
 
 /** Line value only when qty, cost, and currency are all checked. Otherwise the column stays empty. */
@@ -119,21 +121,28 @@ export function lineOrderValue(style: Pick<StyleCard, 'fields'>): string | null 
 export function displayFact(
   field: StyleFieldView | null | undefined,
   options: { money?: boolean; currency?: StyleFieldView | null } = {},
-): { text: string; unchecked: boolean } {
+): { text: string; unchecked: boolean; disagree: boolean } {
+  const disagree = field?.confirmationStatus === 'NEEDS_REVIEW' || field?.proposedDiffersFromConfirmed === true;
   if (!field || field.confirmationStatus === 'NOT_STATED' || field.confirmationStatus === 'REJECTED') {
-    return { text: '—', unchecked: false };
+    return { text: '—', unchecked: false, disagree: false };
   }
   if (isCheckedStatus(field.confirmationStatus)) {
     const value = field.confirmedValue ?? field.displayValue;
-    if (value == null || value === '') return { text: '—', unchecked: hasOutstandingProposal(field) };
+    if (value == null || value === '') return { text: '—', unchecked: hasOutstandingProposal(field), disagree };
     const text = options.money ? formatMoneyAmount(value, options.currency) : formatFieldValue(value);
-    return { text, unchecked: hasOutstandingProposal(field) };
+    return { text, unchecked: hasOutstandingProposal(field), disagree };
   }
-  if (hasOutstandingProposal(field)) {
-    const text = options.money ? formatMoneyAmount(field.proposedValue, options.currency) : formatFieldValue(field.proposedValue);
-    return { text, unchecked: true };
-  }
-  return { text: '—', unchecked: false };
+  const raw = field.proposedValue ?? field.displayValue;
+  if (raw == null || raw === '') return { text: '—', unchecked: false, disagree: false };
+  const text = options.money ? formatMoneyAmount(raw, options.currency) : formatFieldValue(raw);
+  if (text === '—') return { text: '—', unchecked: false, disagree: false };
+  return { text, unchecked: true, disagree };
+}
+
+export function emailsDisagree(style: Pick<StyleCard, 'fields'>): boolean {
+  return Object.values(style.fields).some(
+    (field) => field?.confirmationStatus === 'NEEDS_REVIEW' || field?.proposedDiffersFromConfirmed === true,
+  );
 }
 
 export interface OutstandingCheck {

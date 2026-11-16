@@ -1,36 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { FieldBlock } from '../components/FieldBlock';
-import { STAGE_COLUMNS, boardColumnForStyle } from '../lib/board';
+import {
+  LEGACY_STAGE_LABELS,
+  STAGE_COLUMNS,
+  STAGE_LABELS,
+  boardColumnForStyle,
+  currentStageTone,
+  legacyStageValue,
+  styleCreatedFromEmail,
+} from '../lib/board';
 import { styleCardIsEmpty } from '../lib/empty';
 import { pickForwardingAddress } from '../lib/shell';
 import {
   fieldLabel,
+  formatFactValue,
   formatFieldValue,
   headlineFact,
+  isCheckedStatus,
   styleTitle,
   isActionableConfirmationStatus,
   revisionLabel,
   showStatusTag,
   statusLabel,
 } from '../lib/format';
+import { colourChips } from '../lib/garment';
+import { displayFact, statusBadge } from '../lib/range';
 import { evidenceSnippet, stageTimelineEntry, stageTimelineLabel } from '../lib/stage-timeline';
-import { AttachmentGrid } from '../components/AttachmentGrid';
-import { uniqueAttachmentsFromEmails } from '../lib/attachments';
+import { AttachmentGrid, AttachmentUpload } from '../components/AttachmentGrid';
+import { isImageAttachment, mergeAttachments, uniqueAttachmentsFromEmails } from '../lib/attachments';
 import type { ConfirmAllResult, FieldRevision, StyleCard, StyleEmail, StyleFieldView } from '../types';
 
-const STAGE_NAME: Record<string, string> = {
-  LAB_DIP: 'Lab Dip',
-  PROTO: 'Proto',
-  SMS: 'SMS',
-  PP: 'PP',
-  BULK: 'Bulk',
-  SHIP: 'Ship',
-};
-
-const PRODUCTION_FIELDS = ['fabric', 'color', 'season', 'factoryName', 'inspectionType'];
+const PRODUCTION_FIELDS = ['fabric', 'color', 'sizeRange', 'season', 'factoryName', 'inspectionType'];
 const COMMERCIAL_FIELDS = ['quantity', 'costFob', 'currency', 'deliveryDate', 'status'];
+
+function rowStatusLabel(status: string) {
+  if (status === 'NEEDS_REVIEW') return 'Emails disagree';
+  return statusLabel(status);
+}
 
 function emailPreview(bodyText: string | null) {
   if (!bodyText) return '';
@@ -39,12 +47,12 @@ function emailPreview(bodyText: string | null) {
 
 export function StyleCardPage() {
   const { styleId } = useParams();
+  const navigate = useNavigate();
   const [style, setStyle] = useState<StyleCard | null>(null);
   const [emails, setEmails] = useState<StyleEmail[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [listing, setListing] = useState(false);
   const [expandedField, setExpandedField] = useState<string | null>(null);
   const [emailsLoaded, setEmailsLoaded] = useState(false);
   const [emailsFailed, setEmailsFailed] = useState(false);
@@ -78,6 +86,13 @@ export function StyleCardPage() {
     };
   }, []);
 
+  async function uploadFiles(files: File[]) {
+    if (!styleId) return;
+    setError(null);
+    await api.uploadStyleAttachments(styleId, files);
+    await load();
+  }
+
   async function copyForwardingAddress() {
     if (!forwardAddress || !navigator.clipboard?.writeText) return;
     try {
@@ -100,7 +115,14 @@ export function StyleCardPage() {
     return map;
   }, [style]);
 
-  const attachments = useMemo(() => uniqueAttachmentsFromEmails(emails), [emails]);
+  const attachments = useMemo(() => {
+    const fromStyle = (style?.attachments ?? []).map((attachment) => ({
+      ...attachment,
+      emailId: attachment.emailId ?? null,
+    }));
+    return mergeAttachments(fromStyle, uniqueAttachmentsFromEmails(emails));
+  }, [style, emails]);
+  const heroAttachment = attachments.find((attachment) => isImageAttachment(attachment.mimeType)) ?? null;
   const cardEmpty = emailsLoaded && !emailsFailed && styleCardIsEmpty(emails.length, attachments.length);
 
   useEffect(() => {
@@ -131,17 +153,16 @@ export function StyleCardPage() {
     return list;
   }, [style]);
 
-  async function addToBoard() {
+  async function markNotAStyle() {
     if (!style) return;
-    setListing(true);
+    setBusy(true);
     setError(null);
     try {
-      const next = await api.listStyleOnBoard(style.id);
-      setStyle(next);
+      await api.markNotAStyle(style.id);
+      navigate('/inbox');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to add this style to the Range Board');
-    } finally {
-      setListing(false);
+      setError(err instanceof Error ? err.message : 'Unable to mark this as not a style');
+      setBusy(false);
     }
   }
 
@@ -171,12 +192,19 @@ export function StyleCardPage() {
     );
   }
 
-  const checkedStage = boardColumnForStyle(style);
+  const loaded = style;
+  const checkedStage = boardColumnForStyle(loaded);
   const quantityField = style.fields.quantity;
   const costField = style.fields.costFob;
   const colorField = style.fields.color;
   const deliveryField = style.fields.deliveryDate;
   const stageField = style.fields.stage;
+  const statusField = style.fields.status;
+  const statusFact = displayFact(statusField);
+  const colorFact = displayFact(colorField);
+  const millFact = displayFact(style.fields.factoryName);
+  const colourSwatches = colorFact.text === '—' ? [] : colourChips(colorFact.text);
+  const supplier = loaded.supplierName?.trim() || '';
 
   const timelineTexts = [
     ...emails.map((email) => email.bodyText),
@@ -184,42 +212,49 @@ export function StyleCardPage() {
     ...Object.values(style.fields).map((field) => evidenceSnippet(field.evidence)),
   ];
 
-  const checkedStageLabel = STAGE_NAME[checkedStage] ?? (checkedStage === 'UNCONFIRMED' ? 'not recorded' : checkedStage);
+  const checkedStageLabel =
+    checkedStage === 'UNCONFIRMED' ? 'not recorded' : (STAGE_LABELS[checkedStage] ?? checkedStage);
+  const legacyStage = legacyStageValue(loaded);
 
   function detailValue(fieldView: StyleFieldView) {
     if (fieldView.confirmationStatus === 'REJECTED') return '—';
+    const currency = fieldView.field === 'costFob' ? loaded.fields.currency : undefined;
     if (fieldView.confirmationStatus === 'CONFIRMED' || fieldView.confirmationStatus === 'NEEDS_REVIEW') {
-      return formatFieldValue(fieldView.confirmedValue ?? fieldView.displayValue);
+      return formatFactValue(fieldView.field, fieldView.confirmedValue ?? fieldView.displayValue, currency);
     }
-    return formatFieldValue(fieldView.proposedValue ?? fieldView.displayValue);
+    return formatFactValue(fieldView.field, fieldView.proposedValue ?? fieldView.displayValue, currency);
   }
 
   return (
     <div className="page">
       <div className="wrap">
         <div className="head-main">
-          <div className="style-image" title="Hero style photo placeholder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
-              <path d="M9 5 L7 3 L5 5 L3 7 L3 19 L21 19 L21 7 L19 5 L17 3 L15 5 Z" />
-              <path d="M9 5 Q12 8 15 5" />
-            </svg>
-            <div className="lbl">No photo yet</div>
-          </div>
+          <StylePhoto attachment={heroAttachment} />
 
           <div className="head-fields">
-            <div className="crumb">{style.brand?.name ?? 'Studio'}</div>
             <div className="head-row">
               <div className="card-head">
                 <h1>{styleTitle(style)}</h1>
+                {statusField && isCheckedStatus(statusField.confirmationStatus) && statusBadge(statusFact.text) ? (
+                  <span className={`range-flag is-${statusBadge(statusFact.text)?.tone} ${statusFact.disagree ? 'is-unchecked' : ''}`}>
+                    <span className="range-flag-swatch" />
+                    {statusFact.disagree ? (
+                      <span className="range-disagree" title="Emails disagree">
+                        !
+                      </span>
+                    ) : null}
+                    <span>{statusBadge(statusFact.text)?.label}</span>
+                  </span>
+                ) : null}
               </div>
 
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <Link className="btn btn-secondary" to="/">
                   ← Board
                 </Link>
-                {style.listedAt === null ? (
-                  <button className="btn btn-primary" type="button" disabled={listing} onClick={() => void addToBoard()}>
-                    Add to Range Board
+                {styleCreatedFromEmail(style) ? (
+                  <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => void markNotAStyle()}>
+                    Not a style
                   </button>
                 ) : null}
                 <button
@@ -239,6 +274,33 @@ export function StyleCardPage() {
               </div>
             </div>
 
+            {supplier || millFact.text !== '—' ? (
+              <p className="style-parties">
+                {supplier ? <span>{supplier}</span> : null}
+                {millFact.text !== '—' ? (
+                  <span className={millFact.unchecked || millFact.disagree ? 'is-unchecked' : undefined}>
+                    {supplier ? ' · mill ' : 'mill '}
+                    {millFact.disagree ? (
+                      <span className="range-disagree" title="Emails disagree">
+                        !
+                      </span>
+                    ) : millFact.unchecked ? (
+                      <span className="butter-pip" aria-hidden="true" />
+                    ) : null}
+                    {millFact.text}
+                    {millFact.unchecked && !millFact.disagree ? ' · Not checked yet' : null}
+                    {millFact.disagree ? ' · Emails disagree' : null}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+
+            {styleCreatedFromEmail(style) ? (
+              <div className="email-origin" role="status">
+                Created from an email. Check the values Spindle read, or mark this as not a style.
+              </div>
+            ) : null}
+
             <div className="facts-row">
               <div className="fact">
                 <div className="l">Style #</div>
@@ -249,7 +311,7 @@ export function StyleCardPage() {
                 <div className="v">
                   {headlineFact(quantityField)}
                   {quantityField?.confirmationStatus === 'NEEDS_REVIEW' ? (
-                    <small>{formatFieldValue(quantityField.proposedValue)} from email</small>
+                    <small>Emails disagree · {formatFieldValue(quantityField.proposedValue)} from email</small>
                   ) : null}
                 </div>
               </div>
@@ -259,11 +321,31 @@ export function StyleCardPage() {
               </div>
               <div className="fact">
                 <div className="l">Colour</div>
-                <div className="v">{headlineFact(colorField)}</div>
+                <div className={`v ${colorFact.unchecked || colorFact.disagree ? 'is-unchecked' : ''}`}>
+                  {colourSwatches.length > 0 ? (
+                    <span className="range-swatches" aria-hidden="true">
+                      {colourSwatches.map((chip) => (
+                        <span key={chip.name} style={{ background: chip.hex }} />
+                      ))}
+                    </span>
+                  ) : null}
+                  {colorFact.text === '—'
+                    ? '—'
+                    : colorFact.disagree
+                      ? `${colorFact.text} · Emails disagree`
+                      : colorFact.unchecked
+                        ? `${colorFact.text} · Not checked yet`
+                        : colorFact.text}
+                </div>
               </div>
               <div className="fact">
-                <div className="l">Delivery</div>
-                <div className="v">{headlineFact(deliveryField)}</div>
+                <div className="l">Ex-factory</div>
+                <div className="v">
+                  {headlineFact(deliveryField)}
+                  {deliveryField?.confirmationStatus === 'NEEDS_REVIEW' ? (
+                    <small>Emails disagree · {formatFieldValue(deliveryField.proposedValue)} from email</small>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
@@ -274,18 +356,38 @@ export function StyleCardPage() {
 
         <div className="sec-head">
           <span className="ttl">
-            Approval timeline <em>6 stages · currently {checkedStageLabel}</em>
+            Approval timeline <em>9 stages · currently {checkedStageLabel}</em>
           </span>
         </div>
+        {legacyStage ? (
+          <p className="timeline-legacy">
+            {stageField && !isCheckedStatus(stageField.confirmationStatus) ? 'From email, not checked' : 'Recorded earlier'} as{' '}
+            {LEGACY_STAGE_LABELS[legacyStage]}. Not placed on the nine stages.
+          </p>
+        ) : null}
         <div className="timeline-steps">
           {STAGE_COLUMNS.map((stg) => {
             const entry = stageTimelineEntry(stg, { stageField, texts: timelineTexts });
-            const stepClass = entry.state === 'approved' ? 'done' : entry.state === 'not_recorded' ? 'unrecorded' : 'mentioned';
+            const tone = checkedStage === stg ? currentStageTone(loaded) : null;
+            const step =
+              entry.state === 'approved'
+                ? { className: 'done', label: 'Recorded complete', mark: '✓' }
+                : checkedStage === stg && tone === 'blocked'
+                  ? { className: 'blocked', label: 'Blocked', mark: '!' }
+                  : checkedStage === stg && tone === 'waiting'
+                    ? { className: 'waiting', label: 'Waiting', mark: '' }
+                    : checkedStage === stg
+                      ? { className: 'current', label: 'Current', mark: '' }
+                      : entry.state === 'proposed'
+                        ? { className: 'unconfirmed', label: 'Not checked yet', mark: '' }
+                        : entry.state === 'mentioned'
+                          ? { className: 'mentioned', label: stageTimelineLabel(entry.state), mark: '' }
+                          : { className: 'unrecorded', label: 'Not recorded', mark: '' };
             return (
-              <div key={stg} className={`tl-step ${stepClass}`} title={entry.evidence ?? stageTimelineLabel(entry.state)}>
-                <div className="mark">{entry.state === 'approved' ? '✓' : ''}</div>
-                <div className="name">{STAGE_NAME[stg] ?? stg}</div>
-                <div className="note">{stageTimelineLabel(entry.state)}</div>
+              <div key={stg} className={`tl-step ${step.className}`} title={entry.evidence ?? step.label}>
+                <div className="mark">{step.mark}</div>
+                <div className="name">{STAGE_LABELS[stg]}</div>
+                <div className="note">{step.label}</div>
                 {entry.state === 'approved' && (entry.evidence || stageField?.emailId) ? (
                   <div className="tl-evidence">
                     {entry.evidence ? <span>“{entry.evidence}”</span> : null}
@@ -311,6 +413,7 @@ export function StyleCardPage() {
                 revisions={historyByField.get(fieldView.field) ?? []}
                 onChanged={() => void load()}
                 compact
+                currency={style.fields.currency}
               />
             ))}
           </div>
@@ -336,14 +439,14 @@ export function StyleCardPage() {
                       <span className="val-num">{detailValue(fieldView)}</span>
                       {showStatusTag(fieldView.confirmationStatus) ? (
                         <span className={`tag tag-${fieldView.confirmationStatus.toLowerCase()}`}>
-                          {statusLabel(fieldView.confirmationStatus)}
+                          {rowStatusLabel(fieldView.confirmationStatus)}
                         </span>
                       ) : null}
                     </div>
                   </div>
                   {isExpanded ? (
                     <div className="detail-expanded">
-                      <FieldBlock field={fieldView} revisions={revisions} onChanged={() => void load()} />
+                      <FieldBlock field={fieldView} revisions={revisions} onChanged={() => void load()} currency={style.fields.currency} />
                     </div>
                   ) : null}
                 </div>
@@ -367,14 +470,14 @@ export function StyleCardPage() {
                       <span className="val-num">{detailValue(fieldView)}</span>
                       {showStatusTag(fieldView.confirmationStatus) ? (
                         <span className={`tag tag-${fieldView.confirmationStatus.toLowerCase()}`}>
-                          {statusLabel(fieldView.confirmationStatus)}
+                          {rowStatusLabel(fieldView.confirmationStatus)}
                         </span>
                       ) : null}
                     </div>
                   </div>
                   {isExpanded ? (
                     <div className="detail-expanded">
-                      <FieldBlock field={fieldView} revisions={revisions} onChanged={() => void load()} />
+                      <FieldBlock field={fieldView} revisions={revisions} onChanged={() => void load()} currency={style.fields.currency} />
                     </div>
                   ) : null}
                 </div>
@@ -399,6 +502,7 @@ export function StyleCardPage() {
                 Register a forwarding address
               </Link>
             ) : null}
+            <AttachmentUpload onFiles={uploadFiles} />
           </section>
         ) : (
           <>
@@ -431,7 +535,9 @@ export function StyleCardPage() {
 
         <div className="sec-head">
           <span className="ttl">Files & Attachments</span>
-          <span className="meta">Click to preview</span>
+          <span className="meta">
+            Click to preview <AttachmentUpload onFiles={uploadFiles} />
+          </span>
         </div>
         <AttachmentGrid attachments={attachments} emptyMessage="No files linked to this style yet." />
           </>
@@ -449,8 +555,13 @@ export function StyleCardPage() {
                 <div className="log-item" key={revision.id}>
                   <div className="log-field">{fieldLabel(revision.field)}</div>
                   <div className="log-what">
-                    {revision.previousValue != null ? `${formatFieldValue(revision.previousValue)} → ` : ''}
-                    <strong>{formatFieldValue(revision.newValue)}</strong> ({revisionLabel(revision)})
+                    {revision.previousValue != null
+                      ? `${formatFactValue(revision.field, revision.previousValue, revision.field === 'costFob' ? loaded.fields.currency : undefined)} → `
+                      : ''}
+                    <strong>
+                      {formatFactValue(revision.field, revision.newValue, revision.field === 'costFob' ? loaded.fields.currency : undefined)}
+                    </strong>{' '}
+                    ({revisionLabel(revision)})
                   </div>
                   <div className="log-who">{new Date(revision.createdAt).toLocaleString()}</div>
                 </div>
@@ -459,6 +570,51 @@ export function StyleCardPage() {
           </div>
         </details>
       </div>
+    </div>
+  );
+}
+
+function StylePhoto({ attachment }: { attachment: { id: string; emailId: string | null; filename: string } | null }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!attachment) {
+      setUrl(null);
+      return undefined;
+    }
+    let active = true;
+    let objectUrl: string | null = null;
+    void api
+      .getAttachmentBlob(attachment.emailId, attachment.id)
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {
+        if (active) setUrl(null);
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [attachment?.id, attachment?.emailId]);
+
+  if (!url) {
+    return (
+      <div className="style-image" title="No style photo yet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
+          <path d="M9 5 L7 3 L5 5 L3 7 L3 19 L21 19 L21 7 L19 5 L17 3 L15 5 Z" />
+          <path d="M9 5 Q12 8 15 5" />
+        </svg>
+        <div className="lbl">No photo yet</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="style-image has-photo">
+      <img src={url} alt={attachment?.filename ?? ''} />
     </div>
   );
 }

@@ -160,4 +160,38 @@ describe('inbox mail view', () => {
     expect(isTextEntryTarget({ tagName: 'DIV', isContentEditable: true })).toBe(true);
     expect(isTextEntryTarget({ tagName: 'BUTTON', isContentEditable: false })).toBe(false);
   });
+
+  it('shows a possible duplicate, a missing file, and a repeated failure without hiding the email', () => {
+    const threads = groupMail(
+      [
+        email({
+          id: 'dup',
+          subject: 'Same dress, different number',
+          hasDuplicateReview: true,
+          duplicateVerdict: 'POSSIBLE',
+          style: null,
+          status: 'PARSED',
+        }),
+        email({
+          id: 'file',
+          subject: 'PO scan',
+          issueKind: 'MISSING_ATTACHMENT',
+          issueReason: 'Could not read po.pdf. The email was kept.',
+          status: 'PARSED',
+        }),
+        email({
+          id: 'again',
+          subject: 'Unreadable',
+          status: 'FAILED',
+          issueKind: 'REPEATED_FAILURE',
+          style: null,
+        }),
+      ],
+      [],
+    );
+    expect(threads.find((thread) => thread.email.id === 'dup')?.exceptions).toContain('possible-duplicate');
+    expect(threads.find((thread) => thread.email.id === 'file')?.exceptions).toContain('missing-file');
+    expect(threads.find((thread) => thread.email.id === 'again')?.exceptions).toContain('could-not-read');
+    expect(threads).toHaveLength(3);
+  });
 });

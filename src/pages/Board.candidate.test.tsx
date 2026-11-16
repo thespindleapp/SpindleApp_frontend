@@ -108,7 +108,7 @@ describe('Range Board listing', () => {
     );
 
     expect(await screen.findByText('Fruity Kaftan')).toBeTruthy();
-    await user.type(screen.getByPlaceholderText('Search styles, brands...'), 'missing-style');
+    await user.type(screen.getByPlaceholderText('Search styles'), 'missing-style');
     expect(screen.getByText('No styles match.')).toBeTruthy();
     const resets = screen.getAllByRole('button', { name: 'Reset filters' });
     await user.click(resets[resets.length - 1]!);
@@ -131,7 +131,7 @@ describe('Range Board listing', () => {
     expect(screen.getByRole('button', { name: 'Gallery' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByRole('button', { name: 'Export CSV' })).toBeNull();
     expect(screen.queryByRole('button', { name: '+ Save current view' })).toBeNull();
-    await user.type(screen.getByPlaceholderText('Search styles, brands...'), 'missing-style');
+    await user.type(screen.getByPlaceholderText('Search styles'), 'missing-style');
     expect(screen.getByText('No styles match.')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Reset filters' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('heading', { name: 'Your range starts with one supplier email.' })).toBeNull();
@@ -205,16 +205,16 @@ describe('Range Board listing', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('12.51')).toBeTruthy();
+    expect(await screen.findByText('£12.51')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Gallery' }).getAttribute('aria-pressed')).toBe('true');
-    expect(document.querySelectorAll('.stage-pip')).toHaveLength(6);
+    expect(document.querySelectorAll('.stage-pip')).toHaveLength(9);
     expect(screen.queryByText('Tech pack')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Table' }));
     expect(screen.getByRole('button', { name: 'Table' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Gallery' }).getAttribute('aria-pressed')).toBe('false');
     await user.click(screen.getByRole('button', { name: 'Fields' }));
     await user.click(screen.getByRole('checkbox', { name: 'Cost' }));
-    expect(screen.queryByText('12.51')).toBeNull();
+    expect(screen.queryByText('£12.51')).toBeNull();
     expect(screen.getByText('Fruity Kaftan')).toBeTruthy();
   });
 
@@ -251,7 +251,7 @@ describe('Range Board listing', () => {
     expect(api.confirm).toHaveBeenCalledWith('qty-1');
   });
 
-  it('keeps GBP and USD totals apart and does not invent a dollar sign', async () => {
+  it('totals checked costs in GBP and does not invent a dollar sign', async () => {
     vi.mocked(api.listStyles).mockResolvedValue([
       styleCard({
         id: 'gbp',
@@ -297,12 +297,12 @@ describe('Range Board listing', () => {
     );
 
     const totals = await screen.findByLabelText('Order value');
-    expect(totals.textContent).toContain('£20');
-    expect(totals.textContent).toContain('$20');
-    expect(totals.textContent).not.toContain('$198');
-    expect(totals.textContent).not.toContain('£198');
-    expect(screen.getByText('99')).toBeTruthy();
+    expect(totals.textContent).toContain('£9,920.00');
+    expect(totals.textContent).not.toContain('$');
+    expect(totals.textContent).not.toContain('£20.00');
+    expect(screen.getByText('£99.00')).toBeTruthy();
     expect(screen.queryByText('$99')).toBeNull();
+    expect(screen.queryByText('$99.00')).toBeNull();
   });
 
   it('shows recorded history and a sticky check bar on a phone', async () => {
@@ -449,12 +449,66 @@ describe('Range Board listing', () => {
     expect(await screen.findByText('Stored stage')).toBeTruthy();
     expect(document.querySelector('.range-flag.is-blocked')?.textContent).toContain('Blocked');
     const stored = screen.getByRole('link', { name: /Stored stage/ });
-    expect(stored.querySelector('.stage-pip.is-now')?.getAttribute('title')).toBe('PP');
-    expect(stored.querySelectorAll('.stage-pip.is-done')).toHaveLength(3);
+    expect(stored.querySelector('.stage-pip.is-now')?.getAttribute('title')).toBe('PP Sample');
+    expect(stored.querySelector('.stage-pip.is-now.is-blocked')).toBeTruthy();
+    expect(stored.querySelectorAll('.stage-pip.is-done')).toHaveLength(5);
     const proposed = screen.getByRole('link', { name: /Proposed stage/ });
     expect(proposed.querySelector('.stage-pip.is-now')).toBeNull();
     expect(proposed.querySelector('.stage-pip.is-done')).toBeNull();
     expect(screen.queryByText('STATUS')).toBeNull();
+    expect(screen.queryByText(/All Brands/)).toBeNull();
+  });
+
+  it('shows a recorded mill, and does not use the workspace brand as the supplier', async () => {
+    vi.mocked(api.listStyles).mockResolvedValue([
+      styleCard({
+        name: 'Tiered Mini Dress',
+        styleNumber: '5602341',
+        brand: { id: 'brand-fern', name: 'Board Fern', slug: 'board-fern' },
+        fields: {
+          factoryName: fact('factoryName', {
+            proposedValue: 'Harbour Mill',
+            confirmedValue: 'Harbour Mill',
+            displayValue: 'Harbour Mill',
+          }),
+          status: fact('status', {
+            proposedValue: 'waiting',
+            confirmedValue: 'waiting',
+            displayValue: 'waiting',
+          }),
+          stage: fact('stage', {
+            proposedValue: 'PROTO',
+            confirmedValue: 'PROTO',
+            displayValue: 'PROTO',
+          }),
+          deliveryDate: fact('deliveryDate', {
+            confirmationStatus: 'NEEDS_REVIEW',
+            proposedValue: '2026-12-01',
+            confirmedValue: '2026-11-01',
+            displayValue: '2026-11-01',
+            proposedDiffersFromConfirmed: true,
+          }),
+        },
+      }),
+    ]);
+
+    render(
+      <MemoryRouter>
+        <BoardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Tiered Mini Dress')).toBeTruthy();
+    expect(screen.queryByText(/Atelier North/)).toBeNull();
+    expect(screen.getByText(/Harbour Mill/)).toBeTruthy();
+    expect(screen.queryByText('Board Fern')).toBeNull();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.getByText('Not checked yet')).toBeTruthy();
+    expect(screen.getByText('Emails disagree')).toBeTruthy();
+    expect(screen.getByText(/Recorded earlier as Proto/)).toBeTruthy();
+    expect(document.querySelector('.range-flag.is-waiting')).toBeTruthy();
+    expect(document.querySelector('.stage-pip.is-now')).toBeNull();
+    expect(document.querySelector('.range-card-title .range-disagree')).toBeTruthy();
   });
 
   it('groups by a checked fabric and keeps a proposed fabric out of the heading', async () => {

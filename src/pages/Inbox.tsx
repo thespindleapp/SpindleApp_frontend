@@ -5,10 +5,12 @@ import { AttachmentGrid } from '../components/AttachmentGrid';
 import { CandidatePicker } from '../components/CandidatePicker';
 import { FieldBlock } from '../components/FieldBlock';
 import { inboxSurface, isReadingStatus, supplierForwardMessage } from '../lib/empty';
-import { canStartNewFromEmail, inboxItems, type InboxEmail } from '../lib/inbox';
+import { inboxItems, type InboxEmail } from '../lib/inbox';
+import { canRetryEmail, progressHeadline, progressPercent, progressSignature, type InboxProgress } from '../lib/inbox-progress';
 import {
   EXCEPTION_LABEL,
   applyDraftChoice,
+  groupFiledThreads,
   groupMail,
   inboxSnippet,
   inboxWhen,
@@ -16,13 +18,14 @@ import {
   senderLabel,
   stepException,
   styleChip,
+  threadIsFiled,
   visibleThreads,
   type InboxFilter,
   type MailThread,
 } from '../lib/inbox-view';
 import { pickForwardingAddress } from '../lib/shell';
 import { matchKindLabel } from '../lib/style-draft';
-import type { ConfirmationRow, StyleDraft, StyleEmail, StyleFieldView } from '../types';
+import type { ConfirmationRow, DuplicateReview, StyleDraft, StyleEmail, StyleFieldView } from '../types';
 
 function reviewField(row: ConfirmationRow): StyleFieldView {
   return {
@@ -58,9 +61,12 @@ export function InboxPage() {
   const [drafts, setDrafts] = useState<Record<string, StyleDraft | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [listingId, setListingId] = useState<string | null>(null);
   const [forwardAddress, setForwardAddress] = useState<string | null | undefined>(undefined);
   const [copied, setCopied] = useState<'address' | 'message' | null>(null);
+  const [progress, setProgress] = useState<InboxProgress | null>(null);
+  const [reviews, setReviews] = useState<DuplicateReview[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<InboxFilter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [keyFocusId, setKeyFocusId] = useState<string | null>(null);
@@ -71,9 +77,14 @@ export function InboxPage() {
   async function load() {
     setError(null);
     try {
-      const [received, pending] = await Promise.all([api.listInboxEmails(), loadConfirmations()]);
+      const [received, pending, snapshot] = await Promise.all([
+        api.listInboxEmails(),
+        loadConfirmations(),
+        api.inboxProgress().catch(() => null),
+      ]);
       setEmails(received);
       setConfirmations(pending);
+      setProgress(snapshot);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load the inbox');
     } finally {
@@ -97,6 +108,7 @@ export function InboxPage() {
   const selectedThreadId = selected?.email.threadId ?? null;
   const selectedHasStyle = Boolean(selected?.email.style);
   const needCount = threads.filter((thread) => thread.exceptions.length > 0).length;
+  const filedCount = threads.filter(threadIsFiled).length;
   const showReading = surface === 'reading';
   const showMail = !loading && !error && emails.length > 0 && !showReading;
 
@@ -105,12 +117,27 @@ export function InboxPage() {
   }, []);
 
   useEffect(() => {
-    if (surface !== 'listening' && surface !== 'reading') return;
+    const followList = surface === 'listening' || surface === 'reading';
+    if (!followList && !progress?.active) return;
     const id = window.setInterval(() => {
-      void loadRef.current();
+      if (followList) {
+        void loadRef.current();
+        return;
+      }
+      void api
+        .inboxProgress()
+        .then((next) => {
+          setProgress((current) => {
+            if (!current || progressSignature(current) !== progressSignature(next)) {
+              void loadRef.current();
+            }
+            return next;
+          });
+        })
+        .catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(id);
-  }, [surface]);
+  }, [surface, progress?.active]);
 
   useEffect(() => {
     if (surface === 'loading' || surface === 'error' || surface === 'reading') return;
@@ -213,21 +240,57 @@ export function InboxPage() {
     }
   }
 
-  async function addToBoard(styleId: string) {
-    setListingId(styleId);
-    setError(null);
+  useEffect(() => {
+    if (!selectedEmailId || (!selected?.email.hasDuplicateReview && selected?.email.duplicateVerdict == null)) {
+      setReviews([]);
+      return;
+    }
+    let cancelled = false;
+    void api
+      .listEmailDuplicates(selectedEmailId)
+      .then((rows) => {
+        if (!cancelled) setReviews(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setReviews([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedEmailId, selected?.email.hasDuplicateReview, selected?.email.duplicateVerdict]);
+
+  async function retryEmail(emailId: string) {
+    setRetryingId(emailId);
+    setNotice(null);
     try {
-      await api.listStyleOnBoard(styleId);
+      await api.reprocessEmail(emailId);
+      setNotice('Queued to be read again.');
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to add this style to the Range Board');
+      setNotice(err instanceof Error ? err.message : 'Could not retry this email');
     } finally {
-      setListingId(null);
+      setRetryingId(null);
+    }
+  }
+
+  async function resolveDuplicate(reviewId: string, action: 'confirm' | 'dismiss') {
+    setNotice(null);
+    try {
+      if (action === 'confirm') {
+        await api.confirmDuplicate(reviewId);
+        setNotice('Marked as a duplicate. The style records were left as they are.');
+      } else {
+        await api.dismissDuplicate(reviewId);
+        setNotice('Kept as separate.');
+      }
+      await load();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Could not update this duplicate');
     }
   }
 
   return (
-    <div className="page">
+    <div className="page inbox-page">
       {surface === 'listening' || showReading ? (
         <div className="page-head">
           <div>
@@ -238,6 +301,8 @@ export function InboxPage() {
       ) : null}
       {surface === 'listening' ? <p className="lede">Spindle is listening for supplier email.</p> : null}
       {error ? <div className="error">{error}</div> : null}
+      {notice ? <p className="muted">{notice}</p> : null}
+      {progress && progress.received > 0 ? <BatchProgress progress={progress} shown={emails.length} /> : null}
       {surface === 'loading' ? <p className="muted">Loading the inbox…</p> : null}
       {surface === 'listening' ? (
         <section className="inbox-empty" aria-labelledby="inbox-empty-heading">
@@ -307,14 +372,7 @@ export function InboxPage() {
                 <h2>
                   <Link to={`/emails/${email.id}`}>{email.subject || 'No subject'}</Link>
                 </h2>
-                <p>Nothing goes on the board until you check it.</p>
-                {canStartNewFromEmail(email) ? (
-                  <p>
-                    <Link className="btn btn-secondary" to={`/emails/${email.id}/new`}>
-                      New from email
-                    </Link>
-                  </p>
-                ) : null}
+                <p>Spindle is reading this email. A clear style number is filed on the Range board when the read finishes.</p>
                 {pending ? <CandidatePicker row={{ ...pending, email }} onResolved={() => void load()} /> : null}
               </article>
             );
@@ -340,19 +398,36 @@ export function InboxPage() {
                   <button type="button" aria-pressed={filter === 'needs'} onClick={() => setFilter('needs')}>
                     Needs you · {needCount}
                   </button>
+                  <button type="button" aria-pressed={filter === 'filed'} onClick={() => setFilter('filed')}>
+                    Filed · {filedCount}
+                  </button>
                 </div>
                 <span className="muted">Newest first · J / K move through exceptions</span>
               </div>
             </div>
-            <div className="inbox-rows" role="listbox" aria-label={filter === 'needs' ? 'Needs you' : 'All mail'}>
-              {visible.map((thread) => (
-                <MailRow
-                  key={thread.email.id}
-                  thread={thread}
-                  selected={selected?.email.id === thread.email.id}
-                  onSelect={() => setSelectedId(thread.email.id)}
-                />
-              ))}
+            <div className="inbox-rows" role="listbox" aria-label={filter === 'needs' ? 'Needs you' : filter === 'filed' ? 'Filed' : 'All mail'}>
+              {filter === 'filed'
+                ? groupFiledThreads(visible).map((group) => (
+                    <div className="filed-group" key={group.key}>
+                      <div className="filed-group-label">{group.label}</div>
+                      {group.threads.map((thread) => (
+                        <MailRow
+                          key={thread.email.id}
+                          thread={thread}
+                          selected={selected?.email.id === thread.email.id}
+                          onSelect={() => setSelectedId(thread.email.id)}
+                        />
+                      ))}
+                    </div>
+                  ))
+                : visible.map((thread) => (
+                    <MailRow
+                      key={thread.email.id}
+                      thread={thread}
+                      selected={selected?.email.id === thread.email.id}
+                      onSelect={() => setSelectedId(thread.email.id)}
+                    />
+                  ))}
               {filter === 'needs' && visible.length === 0 ? (
                 <div className="inbox-clear">
                   <h2>Nothing needs you</h2>
@@ -366,9 +441,11 @@ export function InboxPage() {
               thread={selected}
               draft={drafts[selected.email.id] ?? null}
               threadMessages={threadMessages}
-              listingId={listingId}
+              reviews={reviews}
+              retrying={retryingId === selected.email.id}
               onResolved={() => void load()}
-              onAddToBoard={(styleId) => void addToBoard(styleId)}
+              onRetry={() => void retryEmail(selected.email.id)}
+              onReview={(reviewId, action) => void resolveDuplicate(reviewId, action)}
             />
           ) : null}
         </section>
@@ -409,20 +486,50 @@ function MailRow({ thread, selected, onSelect }: { thread: MailThread; selected:
   );
 }
 
+function BatchProgress({ progress, shown }: { progress: InboxProgress; shown: number }) {
+  const percent = progressPercent(progress);
+  const headline = progressHeadline(progress);
+  return (
+    <section className="inbox-progress" aria-label="Processing progress">
+      <div className="inbox-progress-head">
+        <strong>{headline}</strong>
+        <span>{percent}%</span>
+      </div>
+      <div className="inbox-progress-track" aria-hidden="true">
+        <div className="inbox-progress-fill" style={{ width: `${percent}%` }} />
+      </div>
+      <div className="inbox-progress-counts">
+        <span>{progress.received} received</span>
+        <span>{progress.queued} queued</span>
+        <span>{progress.processing} processing</span>
+        <span>{progress.processed} filed</span>
+        <span>{progress.review} need you</span>
+        <span>{progress.failed} could not be read</span>
+        {progress.openDuplicates > 0 ? <span>{progress.openDuplicates} possible duplicates</span> : null}
+      </div>
+      {shown > 0 && progress.received > shown ? <p className="muted">Showing the latest {shown} of {progress.received}.</p> : null}
+    </section>
+  );
+}
+
 function MailDetail({
   thread,
   draft,
   threadMessages,
-  listingId,
+  reviews,
+  retrying,
   onResolved,
-  onAddToBoard,
+  onRetry,
+  onReview,
 }: {
   thread: MailThread;
   draft: StyleDraft | null;
   threadMessages: StyleEmail[];
-  listingId: string | null;
+  reviews: DuplicateReview[];
+  retrying: boolean;
   onResolved: () => void;
-  onAddToBoard: (styleId: string) => void;
+  onRetry: () => void;
+  onReview: (reviewId: string, action: 'confirm' | 'dismiss') => void;
 }) {
   const email = thread.email;
   const reading = isReadingStatus(email.status);
@@ -487,9 +594,72 @@ function MailDetail({
         </div>
         <aside className="inbox-found">
           <span className="empty-kicker">What Spindle found</span>
-          {reading ? <p>Nothing goes on the board until you check it.</p> : null}
+          {reading ? <p>Spindle is reading this email. A clear style number is filed on the Range board when the read finishes.</p> : null}
           {!reading && thread.exceptions.includes('could-not-read') ? (
-            <p>Spindle could not read this email. The file is still here to open.</p>
+            <p>{email.issueReason || 'Spindle could not read this email. The file is still here to open.'}</p>
+          ) : null}
+          {!reading && email.issueKind === 'REPEATED_FAILURE' ? (
+            <p>Automatic retries have stopped. You can try again when you are ready.</p>
+          ) : null}
+          {!reading && (email.issueKind === 'MISSING_ATTACHMENT' || email.issueKind === 'UNSUPPORTED_FORMAT' || email.issueKind === 'INCOMPLETE' || email.issueKind === 'MANUAL_REVIEW') && email.issueReason ? (
+            <p>{email.issueReason}</p>
+          ) : null}
+          {email.duplicateVerdict === 'CONFIRMED' ? (
+            <p>
+              Confirmed duplicate.
+              {email.duplicateOfEmailId ? (
+                <>
+                  {' '}
+                  <Link to={`/emails/${email.duplicateOfEmailId}`}>Open the original</Link>
+                </>
+              ) : null}
+              {email.redeliveryCount ? ` Received again ${email.redeliveryCount} ${email.redeliveryCount === 1 ? 'time' : 'times'}.` : ''}
+            </p>
+          ) : null}
+          {canRetryEmail(email) ? (
+            <button className="btn btn-secondary" type="button" disabled={retrying} onClick={onRetry}>
+              {retrying ? 'Queuing…' : 'Try again'}
+            </button>
+          ) : null}
+          {reviews.length > 0 ? (
+            <div className="style-matches">
+              {reviews.map((review) => (
+                <div className="candidate" key={review.id}>
+                  <span>
+                    {review.verdict === 'CONFIRMED' ? 'Confirmed duplicate' : 'Possible duplicate'}
+                    <span className="muted"> · {review.reason}</span>
+                    {review.matchedStyle ? (
+                      <span className="muted">
+                        {' '}
+                        · {review.matchedStyle.styleNumber} {review.matchedStyle.name}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mail-actions">
+                    {review.matchedStyle ? (
+                      <Link className="btn btn-secondary" to={`/styles/${review.matchedStyle.id}`}>
+                        Open style
+                      </Link>
+                    ) : null}
+                    {review.matchedEmail ? (
+                      <Link className="btn btn-secondary" to={`/emails/${review.matchedEmail.id}`}>
+                        Open email
+                      </Link>
+                    ) : null}
+                    {review.status === 'OPEN' ? (
+                      <>
+                        <button className="btn btn-secondary" type="button" onClick={() => onReview(review.id, 'confirm')}>
+                          Mark duplicate
+                        </button>
+                        <button className="btn btn-secondary" type="button" onClick={() => onReview(review.id, 'dismiss')}>
+                          Not a duplicate
+                        </button>
+                      </>
+                    ) : null}
+                  </span>
+                </div>
+              ))}
+            </div>
           ) : null}
           {!reading && thread.disagreements.length > 0 ? (
             <>
@@ -500,61 +670,146 @@ function MailDetail({
             </>
           ) : null}
           {!reading && thread.exceptions.includes('which-style') ? (
-            <>
-              <p>This email is not on a style yet. Nothing is filed until you check it.</p>
-              {thread.identity ? <CandidatePicker row={{ ...thread.identity, email }} onResolved={onResolved} /> : null}
-              {draft && draft.matches.length > 0 ? (
-                <div className="style-matches">
-                  {draft.matches.map((match) => (
-                    <div className="candidate" key={match.styleId}>
-                      <span>
-                        {match.styleNumber} · {match.name}
-                        <span className="muted"> · {matchKindLabel(match.kind)}</span>
-                      </span>
-                      <Link className="btn btn-secondary" to={`/styles/${match.styleId}`}>
-                        Open style
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              {canStartNewFromEmail(email) ? (
-                <Link className="btn btn-secondary" to={`/emails/${email.id}/new`}>
-                  New from email
-                </Link>
-              ) : null}
-            </>
+            <WhichStyle thread={thread} draft={draft} onResolved={onResolved} />
           ) : null}
+          {!reading && email.style ? <FoundValues styleId={email.style.id} emailId={email.id} onChanged={onResolved} /> : null}
           {!reading && thread.exceptions.length === 0 && email.style ? (
             <>
               <p>This email is on {styleChip(email)}.</p>
               <Link className="btn btn-secondary" to={`/styles/${email.style.id}`}>
-                Open style
+                Open {email.style.styleNumber}
               </Link>
-              {!email.style.listedAt ? (
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  disabled={listingId === email.style.id}
-                  onClick={() => onAddToBoard(email.style!.id)}
-                >
-                  Add to Range Board
-                </button>
-              ) : null}
             </>
           ) : null}
-          {!reading && thread.exceptions.length === 0 && !email.style ? (
-            <>
-              <p>Nothing to check on this email.</p>
-              {canStartNewFromEmail(email) ? (
-                <Link className="btn btn-secondary" to={`/emails/${email.id}/new`}>
-                  New from email
-                </Link>
-              ) : null}
-            </>
-          ) : null}
+          {!reading && thread.exceptions.length === 0 && !email.style ? <p>Nothing to check on this email.</p> : null}
         </aside>
       </div>
     </article>
+  );
+}
+
+function WhichStyle({
+  thread,
+  draft,
+  onResolved,
+}: {
+  thread: MailThread;
+  draft: StyleDraft | null;
+  onResolved: () => void;
+}) {
+  const email = thread.email;
+  const [styleNumber, setStyleNumber] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  async function assign(body: { styleId?: string; styleNumber?: string }) {
+    setBusy(true);
+    setLocalError(null);
+    try {
+      await api.assignEmailStyle(email.id, body);
+      onResolved();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Unable to file this email');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function dismiss() {
+    setBusy(true);
+    setLocalError(null);
+    try {
+      await api.markEmailNotAboutStyle(email.id);
+      onResolved();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Unable to set this email aside');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <p>This email doesn't name a style. Which one is it about?</p>
+      {localError ? <div className="error">{localError}</div> : null}
+      {thread.identity ? <CandidatePicker row={{ ...thread.identity, email }} onResolved={onResolved} /> : null}
+      {draft && draft.matches.length > 0 ? (
+        <div className="style-matches">
+          {draft.matches.map((match) => (
+            <div className="candidate" key={match.styleId}>
+              <span>
+                {match.styleNumber} · {match.name}
+                <span className="muted"> · {matchKindLabel(match.kind)}</span>
+              </span>
+              <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => void assign({ styleId: match.styleId })}>
+                This style
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <form
+        className="field"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const value = styleNumber.trim();
+          if (!value) return;
+          void assign({ styleNumber: value });
+        }}
+      >
+        <label htmlFor={`tell-style-${email.id}`}>Tell me which style it is about</label>
+        <input
+          id={`tell-style-${email.id}`}
+          value={styleNumber}
+          onChange={(event) => setStyleNumber(event.target.value)}
+          placeholder="Style number"
+          disabled={busy}
+        />
+        <button className="btn btn-primary" type="submit" disabled={busy || styleNumber.trim().length === 0}>
+          File on this style
+        </button>
+      </form>
+      <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => void dismiss()}>
+        Not about a style
+      </button>
+    </>
+  );
+}
+
+function FoundValues({ styleId, emailId, onChanged }: { styleId: string; emailId: string; onChanged: () => void }) {
+  const [fields, setFields] = useState<StyleFieldView[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getStyle(styleId)
+      .then((style) => {
+        if (cancelled) return;
+        const views = Object.values(style.fields ?? {}).filter((field) => field.field !== 'brand');
+        const mine = views.filter((field) => field.emailId === emailId);
+        const pending = views.filter(
+          (field) =>
+            field.confirmationStatus === 'PROPOSED' ||
+            field.confirmationStatus === 'UNCONFIRMED' ||
+            field.confirmationStatus === 'NEEDS_REVIEW' ||
+            field.proposedDiffersFromConfirmed,
+        );
+        setFields(mine.length > 0 ? mine : pending);
+      })
+      .catch(() => {
+        if (!cancelled) setFields([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [styleId, emailId]);
+
+  if (fields.length === 0) return null;
+  return (
+    <>
+      {fields.map((field) => (
+        <FieldBlock key={field.field} field={field} revisions={[]} onChanged={onChanged} compact />
+      ))}
+    </>
   );
 }

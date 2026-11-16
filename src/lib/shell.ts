@@ -1,8 +1,6 @@
-import { inboxItems, type InboxEmail } from './inbox';
+import { groupMail } from './inbox-view';
+import type { InboxEmail } from './inbox';
 import type { ConfirmationRow, EmailAccount, Workspace } from '../types';
-
-const OUTSTANDING = new Set(['PENDING', 'UNCONFIRMED', 'NEEDS_REVIEW', 'PROPOSED']);
-const IDENTITY_FIELDS = new Set(['styleNumber', 'styleAssignment']);
 
 export function roleLabel(role: string) {
   const known: Record<string, string> = {
@@ -54,19 +52,7 @@ export function pickForwardingAddress(accounts: EmailAccount[]): string | null {
   return preferred?.emailAddress.trim() ?? null;
 }
 
+/** Matches the inbox Needs you tab. Confirmations with no email in the inbox do not count. */
 export function needsAttentionCount(emails: InboxEmail[], confirmations: ConfirmationRow[]): number {
-  const inbox = inboxItems(emails, confirmations).length;
-  const fieldChecks = confirmations.filter((row) => {
-    if (row.isCurrent === false) {
-      return false;
-    }
-    if (!OUTSTANDING.has(row.status)) {
-      return false;
-    }
-    if (IDENTITY_FIELDS.has(row.field)) {
-      return false;
-    }
-    return true;
-  }).length;
-  return inbox + fieldChecks;
+  return groupMail(emails, confirmations).filter((thread) => thread.exceptions.length > 0).length;
 }

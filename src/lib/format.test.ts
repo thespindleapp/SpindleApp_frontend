@@ -76,7 +76,7 @@ describe('headline facts', () => {
     ).toBe('From email, check');
   });
 
-  it('formats checked costs from confirmed currency and omits a symbol when currency is not stated', () => {
+  it('formats a checked GBP cost with £ and leaves a foreign code unlabelled', () => {
     const cost = {
       confirmationStatus: 'CONFIRMED' as const,
       proposedValue: 19.25,
@@ -94,26 +94,24 @@ describe('headline facts', () => {
         money: true,
         currency: { confirmationStatus: 'CONFIRMED', confirmedValue: 'USD', displayValue: 'USD' },
       }),
-    ).toBe('$19.25');
+    ).toBe('19.25');
     expect(
       headlineFact(cost, {
         money: true,
-        currency: { confirmationStatus: 'CONFIRMED', confirmedValue: 'EUR', displayValue: 'EUR' },
+        currency: { confirmationStatus: 'PROPOSED', proposedValue: 'EUR', displayValue: 'EUR', confirmedValue: null },
       }),
-    ).toBe('€19.25');
-    expect(
-      headlineFact(cost, {
-        money: true,
-        currency: { confirmationStatus: 'CONFIRMED', confirmedValue: 'INR', displayValue: 'INR' },
-      }),
-    ).toBe('₹19.25');
+    ).toBe('19.25');
     expect(
       headlineFact(cost, {
         money: true,
         currency: { confirmationStatus: 'NOT_STATED', confirmedValue: null, displayValue: 'USD' },
       }),
-    ).toBe('19.25');
-    expect(formatMoneyAmount(19.25, { confirmationStatus: 'NOT_STATED', displayValue: 'USD' })).toBe('19.25');
+    ).toBe('£19.25');
+    expect(formatMoneyAmount(1250)).toBe('£1,250.00');
+    expect(formatMoneyAmount(12500.75)).toBe('£12,500.75');
+    expect(formatMoneyAmount('£150.50')).toBe('£150.50');
+    expect(formatMoneyAmount('$19.25')).toBe('—');
+    expect(formatMoneyAmount(null)).toBe('—');
   });
 });
 

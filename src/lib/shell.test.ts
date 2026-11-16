@@ -83,14 +83,17 @@ describe('workspaceForSession', () => {
 });
 
 describe('needsAttentionCount', () => {
-  it('counts unlisted inbox mail and outstanding field checks once', () => {
+  it('counts inbox exceptions and ignores confirmations that have no email in the inbox', () => {
     expect(needsAttentionCount([], [])).toBe(0);
     expect(
-      needsAttentionCount([email()], [confirmation({ field: 'styleNumber', styleId: null, status: 'PENDING' })]),
+      needsAttentionCount([], [confirmation({ field: 'quantity', status: 'PENDING' }), confirmation({ id: 'c2', field: 'costFob', status: 'NEEDS_REVIEW' })]),
+    ).toBe(0);
+    expect(
+      needsAttentionCount([email({ status: 'NEEDS_CONFIRMATION' })], [confirmation({ field: 'styleNumber', styleId: null, status: 'PENDING' })]),
     ).toBe(1);
     expect(
       needsAttentionCount(
-        [email({ style: { id: 'style-1', styleNumber: 'HS-5512', name: 'Sun', listedAt: '2026-10-01' } })],
+        [email({ status: 'PARSED', style: { id: 'style-1', styleNumber: 'HS-5512', name: 'Sun', listedAt: '2026-10-01' } })],
         [
           confirmation({ field: 'quantity', status: 'PENDING' }),
           confirmation({ id: 'c2', field: 'costFob', status: 'NEEDS_REVIEW' }),
@@ -99,6 +102,6 @@ describe('needsAttentionCount', () => {
           confirmation({ id: 'c5', field: 'stage', status: 'PENDING', isCurrent: false }),
         ],
       ),
-    ).toBe(3);
+    ).toBe(1);
   });
 });

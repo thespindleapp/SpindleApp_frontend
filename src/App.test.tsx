@@ -154,8 +154,8 @@ describe('Application shell', () => {
     expect(screen.getByRole('complementary', { name: 'Sidebar' })).toBeTruthy();
     expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
 
-    const inbox = screen.getByRole('link', { name: 'Inbox, 2 need you' });
-    expect(inbox.textContent).toContain('2');
+    const inbox = screen.getByRole('link', { name: 'Inbox, 1 need you' });
+    expect(inbox.textContent).toContain('1');
     expect(view.container.querySelector('.butter-dot')).toBeTruthy();
     expect(screen.getByRole('link', { name: /^Range/ }).textContent).toContain('0');
 
@@ -202,8 +202,8 @@ describe('Application shell', () => {
     expect(screen.queryByText('Suppliers')).toBeNull();
     expect(screen.getByText('Hollis & Row')).toBeTruthy();
     expect(screen.getAllByText('hello@studio.resend.app').length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: 'Inbox, 2 need you' })).toBeTruthy();
-    expect(view.container.querySelector('.tab-badge')?.textContent).toBe('2');
+    expect(screen.getByRole('link', { name: 'Inbox, 1 need you' })).toBeTruthy();
+    expect(view.container.querySelector('.tab-badge')?.textContent).toBe('1');
     expect(view.container.querySelector('.butter-dot')).toBeNull();
   });
 });

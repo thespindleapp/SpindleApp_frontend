@@ -1,6 +1,38 @@
 import type { ConfirmationRow, StyleCard } from '../types';
+import { isCheckedStatus } from './format';
 
-export const STAGE_COLUMNS = ['LAB_DIP', 'PROTO', 'SMS', 'PP', 'BULK', 'SHIP'] as const;
+export const STAGE_COLUMNS = [
+  'TECH_PACK',
+  'COSTING',
+  'LAB_DIP',
+  'STRIKE_OFF',
+  'FIT_SAMPLE',
+  'PP',
+  'TOP',
+  'BULK',
+  'SHIP',
+] as const;
+
+export const STAGE_LABELS: Record<(typeof STAGE_COLUMNS)[number], string> = {
+  TECH_PACK: 'Tech Pack',
+  COSTING: 'Costing',
+  LAB_DIP: 'Lab Dip',
+  STRIKE_OFF: 'Strike-off',
+  FIT_SAMPLE: 'Fit Sample',
+  PP: 'PP Sample',
+  TOP: 'Top-of-Production',
+  BULK: 'Bulk',
+  SHIP: 'Ship',
+};
+
+export const LEGACY_STAGES = ['PROTO', 'SMS', 'INLINE'] as const;
+export type LegacyStage = (typeof LEGACY_STAGES)[number];
+
+export const LEGACY_STAGE_LABELS: Record<LegacyStage, string> = {
+  PROTO: 'Proto',
+  SMS: 'SMS',
+  INLINE: 'Inline',
+};
 
 export type StageDotState = 'done' | 'current' | 'upcoming';
 
@@ -28,6 +60,31 @@ export function boardColumnForStyle(style: Pick<StyleCard, 'fields'>): (typeof S
     return trusted as (typeof STAGE_COLUMNS)[number];
   }
   return 'UNCONFIRMED';
+}
+
+/** An older stored stage that is not one of the nine. It is not placed on the timeline. */
+export function legacyStageValue(style: Pick<StyleCard, 'fields'>): LegacyStage | null {
+  const field = style.fields.stage;
+  if (!field) return null;
+  const checked = field.confirmationStatus === 'CONFIRMED' || field.confirmationStatus === 'NEEDS_REVIEW';
+  const raw = checked ? (field.confirmedValue ?? field.displayValue) : (field.proposedValue ?? field.displayValue);
+  if (typeof raw === 'string' && (LEGACY_STAGES as readonly string[]).includes(raw)) {
+    return raw as LegacyStage;
+  }
+  return null;
+}
+
+/** Waiting or blocked only from a checked status. A proposal does not colour the current stage. */
+export function currentStageTone(style: Pick<StyleCard, 'fields'>): 'blocked' | 'waiting' | null {
+  const field = style.fields.status;
+  if (!field || !isCheckedStatus(field.confirmationStatus)) return null;
+  const value = String(field.confirmedValue ?? field.displayValue ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+  if (value === 'blocked') return 'blocked';
+  if (value === 'waiting' || value === 'waiting_on_supplier') return 'waiting';
+  return null;
 }
 
 /** Style number proposed on an unresolved confirmation. Null when the email did not yield one. */
@@ -70,4 +127,14 @@ export function unresolvedCandidateCards(rows: ConfirmationRow[]): ConfirmationR
     }
   }
   return [...byEmail.values()];
+}
+
+export function styleCreatedFromEmail(style: { metadata?: unknown }): boolean {
+  const metadata = style.metadata;
+  return Boolean(
+    metadata &&
+      typeof metadata === 'object' &&
+      !Array.isArray(metadata) &&
+      (metadata as { createdFromEmail?: unknown }).createdFromEmail === true,
+  );
 }

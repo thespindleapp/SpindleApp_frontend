@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isImageAttachment, uniqueAttachmentsFromEmails } from './attachments';
+import { isImageAttachment, mergeAttachments, uniqueAttachmentsFromEmails, validateAttachmentFiles } from './attachments';
 import type { EmailAttachment, StyleEmail } from '../types';
 
 function attachment(overrides: Partial<EmailAttachment>): EmailAttachment {
@@ -53,6 +53,28 @@ describe('uniqueAttachmentsFromEmails', () => {
   it('returns an empty list when emails have no attachments', () => {
     expect(uniqueAttachmentsFromEmails([email()])).toEqual([]);
     expect(uniqueAttachmentsFromEmails([])).toEqual([]);
+  });
+});
+
+describe('attachment files', () => {
+  it('rejects an empty selection, an unknown type, and an oversized file', () => {
+    expect(validateAttachmentFiles([])).toMatch(/Choose a file/);
+    expect(validateAttachmentFiles([new File(['x'], 'virus.exe')])).toMatch(/not an allowed/);
+    expect(validateAttachmentFiles([new File([''], 'notes.pdf')])).toMatch(/empty/);
+    expect(validateAttachmentFiles([new File(['%PDF'], 'Tech Pack.pdf')])).toBeNull();
+  });
+
+  it('keeps a style upload that has no email beside email copies', () => {
+    const merged = mergeAttachments(
+      [{ id: 'att-1', emailId: null, filename: 'photo.png', mimeType: 'image/png', sizeBytes: 4, createdAt: '2026-11-01T00:00:00.000Z' }],
+      uniqueAttachmentsFromEmails([
+        email({
+          attachments: [{ id: 'att-1', filename: 'photo.png', mimeType: 'image/png', sizeBytes: 4, createdAt: '2026-11-01T00:00:00.000Z' }],
+        }),
+      ]),
+    );
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.emailId).toBe('email-1');
   });
 });
 
