@@ -48,14 +48,14 @@ describe('inbox empty surfaces', () => {
 });
 
 describe('range getting started', () => {
-  it('does not mark season, drops, or team done, and checks forwarding only after mail exists', () => {
+  it('ticks the current season, and checks forwarding only after mail exists', () => {
     const before = gettingStartedSteps(false);
-    expect(gettingStartedProgress(before)).toBe('0 of 4');
-    expect(before.find((step) => step.id === 'season')).toMatchObject({ done: false, available: false });
+    expect(gettingStartedProgress(before)).toBe('1 of 4');
+    expect(before.find((step) => step.id === 'season')).toMatchObject({ done: true, available: false });
     expect(before.find((step) => step.id === 'forward')).toMatchObject({ done: false, available: true });
 
     const after = gettingStartedSteps(true);
-    expect(gettingStartedProgress(after)).toBe('1 of 4');
+    expect(gettingStartedProgress(after)).toBe('2 of 4');
     expect(after.find((step) => step.id === 'forward')?.done).toBe(true);
     expect(after.find((step) => step.id === 'team')?.done).toBe(false);
   });

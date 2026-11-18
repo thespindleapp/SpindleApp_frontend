@@ -13,7 +13,10 @@ import type {
   StyleCard,
   StyleDraft,
   StyleEmail,
+  UserProfile,
   Workspace,
+  WorkspaceDetail,
+  WorkspaceMember,
 } from './types';
 
 const LEGACY_TOKEN_KEY = 'spindle.accessToken';
@@ -189,7 +192,54 @@ function noteUnauthorized(path: string, status: number) {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+let sessionRefresh: Promise<boolean> | null = null;
+
+/** One refresh for every request that wakes up on an expired access token. */
+function refreshSession(): Promise<boolean> {
+  if (isSignedOut()) return Promise.resolve(false);
+  if (!sessionRefresh) {
+    sessionRefresh = (async () => {
+      try {
+        const headers = new Headers({ 'Content-Type': 'application/json' });
+        const workspaceId = getWorkspaceId();
+        if (workspaceId) headers.set('X-Workspace-Id', workspaceId);
+        const response = await fetch('/api/v1/auth/refresh', {
+          method: 'POST',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify({}),
+        });
+        const body = (await response.json().catch(() => null)) as { success?: boolean; data?: { accessToken?: string } } | null;
+        const token = body?.success === true ? body.data?.accessToken : undefined;
+        if (!response.ok || !token || isSignedOut()) return false;
+        setToken(token, { silent: true });
+        return true;
+      } catch {
+        return false;
+      } finally {
+        sessionRefresh = null;
+      }
+    })();
+  }
+  return sessionRefresh;
+}
+
+async function fetchWithRetry(path: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(path, init);
+  } catch (err) {
+    if (!(err instanceof TypeError)) throw err;
+    return fetch(path, init);
+  }
+}
+
+type PageMeta = { total?: number };
+
+async function requestEnvelope<T>(
+  path: string,
+  init: RequestInit = {},
+  authRetried = false,
+): Promise<{ data: T; meta?: PageMeta }> {
   const headers = new Headers(init.headers);
   const isForm = typeof FormData !== 'undefined' && init.body instanceof FormData;
   if (!isForm) {
@@ -204,20 +254,29 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set('X-Workspace-Id', workspaceId);
   }
 
-  const response = await fetch(path, { ...init, headers, credentials: 'include' });
+  const response = await fetchWithRetry(path, { ...init, headers, credentials: 'include' });
+  if (response.status === 401 && !authRetried && !isPublicAuthPath(path)) {
+    const refreshed = await refreshSession();
+    if (refreshed) return requestEnvelope(path, init, true);
+  }
   noteUnauthorized(path, response.status);
   if (response.status === 204) {
-    return undefined as T;
+    return { data: undefined as T };
   }
   const body = (await response.json().catch(() => null)) as
-    | { success: true; data: T; meta?: unknown }
+    | { success: true; data: T; meta?: PageMeta }
     | { success: false; error?: { message?: string; code?: string; details?: unknown } }
     | null;
   if (!response.ok || !body || body.success === false) {
     const error = body && 'error' in body ? body.error : undefined;
     throw new ApiError(response.status, error?.message ?? 'Request failed', error?.code, error?.details);
   }
-  return body.data;
+  const meta = body.meta && typeof body.meta === 'object' ? body.meta : undefined;
+  return { data: body.data, meta };
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return (await requestEnvelope<T>(path, init)).data;
 }
 
 export const api = {
@@ -270,6 +329,25 @@ export const api = {
       '/api/v1/auth/me',
     );
   },
+  updateProfile(input: { firstName?: string; lastName?: string }) {
+    return request<UserProfile>('/api/v1/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+  getWorkspace() {
+    const workspaceId = getWorkspaceId();
+    if (!workspaceId) throw new Error('Select a workspace');
+    return request<WorkspaceDetail>(`/api/v1/workspaces/${workspaceId}`);
+  },
+  updateWorkspace(input: { name?: string; timezone?: string }) {
+    const workspaceId = getWorkspaceId();
+    if (!workspaceId) throw new Error('Select a workspace');
+    return request<WorkspaceDetail>(`/api/v1/workspaces/${workspaceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
   listStyles(query: { stage?: string; status?: string; search?: string; limit?: number } = {}) {
     const params = new URLSearchParams();
     params.set('limit', String(query.limit ?? 100));
@@ -277,6 +355,12 @@ export const api = {
     if (query.status) params.set('status', query.status);
     if (query.search) params.set('search', query.search);
     return request<StyleCard[]>(`/api/v1/styles?${params.toString()}`);
+  },
+  /** Styles currently on the Range board. Uses the list total, not one page of cards. */
+  async countStyles() {
+    const { data, meta } = await requestEnvelope<StyleCard[]>('/api/v1/styles?limit=1');
+    if (typeof meta?.total === 'number' && Number.isFinite(meta.total)) return meta.total;
+    return Array.isArray(data) ? data.length : 0;
   },
   getStyle(id: string) {
     return request<StyleCard>(`/api/v1/styles/${id}`);
@@ -440,6 +524,27 @@ export const api = {
         ...(input.displayName ? { displayName: input.displayName } : {}),
       }),
     });
+  },
+  removeEmailAccount(id: string) {
+    return request<void>(`/api/v1/email-accounts/${id}`, { method: 'DELETE' });
+  },
+  listMembers() {
+    const workspaceId = getWorkspaceId();
+    if (!workspaceId) throw new Error('Select a workspace');
+    return request<WorkspaceMember[]>(`/api/v1/workspaces/${workspaceId}/members`);
+  },
+  inviteMember(email: string) {
+    const workspaceId = getWorkspaceId();
+    if (!workspaceId) throw new Error('Select a workspace');
+    return request<WorkspaceMember>(`/api/v1/workspaces/${workspaceId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+  removeMember(userId: string) {
+    const workspaceId = getWorkspaceId();
+    if (!workspaceId) throw new Error('Select a workspace');
+    return request<void>(`/api/v1/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' });
   },
 };
 

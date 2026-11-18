@@ -136,6 +136,13 @@ function disagreementsFor(ids: Set<string>, confirmations: ConfirmationRow[]): C
   );
 }
 
+const DELIVERY_PROBLEMS: InboxException[] = ['missing-file', 'unsupported', 'could-not-read'];
+
+/** A copy can fail even when the original letter is healthy. */
+export function deliveryProblems(email: InboxEmail): InboxException[] {
+  return exceptionsFor(email, null, []).filter((kind) => DELIVERY_PROBLEMS.includes(kind));
+}
+
 function exceptionsFor(email: InboxEmail, identity: ConfirmationRow | null, disagreements: ConfirmationRow[]): InboxException[] {
   const kinds: InboxException[] = [];
   if (disagreements.length > 0) kinds.push('disagree');
@@ -178,12 +185,14 @@ export function groupMail(emails: InboxEmail[], confirmations: ConfirmationRow[]
       const ids = new Set([group.email.id, ...group.copies.map((copy) => copy.id)]);
       const disagreements = disagreementsFor(ids, confirmations);
       const identity = identityFor(group.email.id, confirmations);
+      const own = exceptionsFor(group.email, identity, disagreements);
+      const fromCopies = group.copies.flatMap((copy) => deliveryProblems(copy));
       return {
         email: group.email,
         copies: group.copies,
         disagreements,
         identity,
-        exceptions: exceptionsFor(group.email, identity, disagreements),
+        exceptions: EXCEPTION_ORDER.filter((kind) => own.includes(kind) || fromCopies.includes(kind)),
       };
     })
     .sort((left, right) => receivedTime(right.email) - receivedTime(left.email) || right.email.id.localeCompare(left.email.id));

@@ -37,6 +37,7 @@ const server = {
   mode: 'ok' as Mode,
   meGate: Promise.resolve() as Promise<void>,
   calls: [] as Array<{ url: string; authorization: string | null; credentials?: RequestCredentials }>,
+  dropNext: 0,
 };
 
 function json(status: number, body: unknown) {
@@ -60,6 +61,7 @@ function resetServer() {
   server.mode = 'ok';
   server.meGate = Promise.resolve();
   server.calls = [];
+  server.dropNext = 0;
 }
 
 function installFetch() {
@@ -70,6 +72,10 @@ function installFetch() {
       const headers = new Headers(init?.headers);
       const authorization = headers.get('Authorization');
       server.calls.push({ url, authorization, credentials: init?.credentials });
+      if (server.dropNext > 0) {
+        server.dropNext -= 1;
+        throw new TypeError('Failed to fetch');
+      }
       if (url.includes(TOKEN)) {
         throw new Error('access token leaked into a request URL');
       }
@@ -357,6 +363,25 @@ describe('protected routes', () => {
     expect(server.calls.slice(refreshCalls).some((call) => call.url.includes('/auth/refresh'))).toBe(false);
     expect(screen.queryByRole('complementary', { name: 'Sidebar' })).toBeNull();
     channel.close();
+  });
+
+  it('renews an idle access token and retries the request', async () => {
+    server.access = TOKEN;
+    setToken('expired-access-token');
+    await expect(api.listStyles()).resolves.toEqual([]);
+    const styles = server.calls.filter((call) => call.url.includes('/api/v1/styles'));
+    expect(styles[0]?.authorization).toBe('Bearer expired-access-token');
+    expect(server.calls.some((call) => call.url.includes('/auth/refresh'))).toBe(true);
+    expect(styles.at(-1)?.authorization).toBe(`Bearer ${TOKEN}`);
+    expect(getToken()).toBe(TOKEN);
+  });
+
+  it('retries a request dropped by an idle connection', async () => {
+    server.access = TOKEN;
+    setToken(TOKEN);
+    server.dropNext = 1;
+    await expect(api.listStyles()).resolves.toEqual([]);
+    expect(server.calls.filter((call) => call.url.includes('/api/v1/styles'))).toHaveLength(2);
   });
 
   it('signs out when a private request returns 401', async () => {

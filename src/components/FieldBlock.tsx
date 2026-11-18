@@ -44,6 +44,10 @@ export function FieldBlock({
   const needsReview = field.confirmationStatus === 'NEEDS_REVIEW';
   const showEvidence = showResolvedProposalEvidence(field);
 
+  function alreadySettled(err: unknown) {
+    return err instanceof Error && /already been resolved/i.test(err.message);
+  }
+
   async function run(action: () => Promise<unknown>) {
     if (!field.confirmationId) return;
     setBusy(true);
@@ -53,6 +57,11 @@ export function FieldBlock({
       setCorrecting(false);
       onChanged();
     } catch (err) {
+      if (alreadySettled(err)) {
+        setCorrecting(false);
+        onChanged();
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Action failed');
     } finally {
       setBusy(false);
@@ -113,7 +122,7 @@ export function FieldBlock({
           ) : null}
         </div>
 
-        <div className="confirm-actions">
+        {canAct ? <div className="confirm-actions">
           {needsReview ? (
             <>
               <button
@@ -158,9 +167,9 @@ export function FieldBlock({
               Not right
             </button>
           ) : null}
-        </div>
+        </div> : null}
 
-        {editControls}
+        {canAct ? editControls : null}
         {error ? <div className="error">{error}</div> : null}
       </div>
     );

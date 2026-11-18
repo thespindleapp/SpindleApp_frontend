@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import { EmptyGhosts } from '../components/EmptyGhosts';
+import { HangerRail } from '../components/EmptyMarks';
 import { FieldBlock } from '../components/FieldBlock';
 import { GarmentMark } from '../components/GarmentMark';
 import {
@@ -13,7 +15,8 @@ import {
   stageDots,
   styleCreatedFromEmail,
 } from '../lib/board';
-import { gettingStartedProgress, gettingStartedSteps } from '../lib/empty';
+import { CURRENT_SEASON } from '../lib/empty';
+import { publishLoadedRangeCount } from '../lib/range-count';
 import { correctionPayload, fieldLabel, formatFieldValue, isCheckedStatus, styleTitle } from '../lib/format';
 import {
   DEFAULT_RANGE_FIELDS,
@@ -36,7 +39,7 @@ import type { StyleCard, StyleFieldView } from '../types';
 
 type SortKey = 'styleNumber' | 'name' | 'quantity' | 'cost' | 'delivery' | 'status' | 'stage';
 type BoardLayout = 'gallery' | 'table';
-type BoardDensity = 'comfortable' | 'compact';
+type BoardDensity = 'small' | 'medium' | 'large';
 type GroupBy = 'none' | 'fabric' | 'factoryName';
 type BoardColumn = { key: string; label: string; sort?: SortKey; width: string };
 
@@ -46,6 +49,16 @@ const COLUMN_PRESETS: Record<string, RangeField[]> = {
 };
 
 const PHONE_QUERY = '(max-width: 720px)';
+
+const SORT_LABEL: Record<SortKey, string> = {
+  styleNumber: 'style number',
+  name: 'name',
+  quantity: 'quantity',
+  cost: 'unit cost',
+  delivery: 'ex-factory',
+  status: 'status',
+  stage: 'stage',
+};
 
 const STAGE_FILTER_LABELS: Record<string, string> = {
   ...STAGE_LABELS,
@@ -75,11 +88,12 @@ export function BoardPage() {
   const [sortKey, setSortKey] = useState<SortKey>('styleNumber');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
   const [layout, setLayout] = useState<BoardLayout>('gallery');
-  const [density, setDensity] = useState<BoardDensity>('comfortable');
+  const [density, setDensity] = useState<BoardDensity>('medium');
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [visibleFields, setVisibleFields] = useState<Set<RangeField>>(() => new Set(DEFAULT_RANGE_FIELDS));
   const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [checkOpen, setCheckOpen] = useState(false);
   const [checkIndex, setCheckIndex] = useState(0);
   const [checkBusy, setCheckBusy] = useState(false);
@@ -90,8 +104,8 @@ export function BoardPage() {
   const [historyStyles, setHistoryStyles] = useState<StyleCard[]>([]);
   const [phone, setPhone] = useState(phoneNow);
   const [forwardAddress, setForwardAddress] = useState<string | null | undefined>(undefined);
-  const [hasMail, setHasMail] = useState<boolean | null>(null);
   const [addressCopied, setAddressCopied] = useState(false);
+  const [soonNote, setSoonNote] = useState<string | null>(null);
   const copiedTimer = useRef<number | null>(null);
 
   async function load() {
@@ -99,6 +113,7 @@ export function BoardPage() {
     try {
       const items = await api.listStyles();
       setStyles(items);
+      publishLoadedRangeCount(items.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load board');
     } finally {
@@ -123,19 +138,12 @@ export function BoardPage() {
     if (loading || error || styles.length > 0) return;
     let cancelled = false;
     void (async () => {
-      const [accounts, emails] = await Promise.all([
-        api.listEmailAccounts().then(
-          (value) => ({ ok: true as const, value }),
-          () => ({ ok: false as const }),
-        ),
-        api.listInboxEmails().then(
-          (value) => ({ ok: true as const, value }),
-          () => ({ ok: false as const }),
-        ),
-      ]);
+      const accounts = await api.listEmailAccounts().then(
+        (value) => ({ ok: true as const, value }),
+        () => ({ ok: false as const }),
+      );
       if (cancelled) return;
       setForwardAddress(accounts.ok ? pickForwardingAddress(accounts.value) : undefined);
-      setHasMail(emails.ok ? emails.value.length > 0 : null);
     })();
     return () => {
       cancelled = true;
@@ -302,7 +310,6 @@ export function BoardPage() {
 
   const workspaceEmpty = !loading && !error && styles.length === 0;
   const filtersEmpty = !loading && !error && styles.length > 0 && filteredStyles.length === 0;
-  const started = gettingStartedSteps(hasMail === true);
   const history = historyEntries(historyStyles);
 
   async function copyForwardingAddress() {
@@ -332,20 +339,29 @@ export function BoardPage() {
 
   return (
     <>
-      <div className={`page range-board ${density === 'compact' ? 'is-compact' : ''}`}>
+      <div className={`page range-board ${workspaceEmpty ? 'is-empty' : ''} ${density === 'small' ? 'is-compact' : ''} ${density === 'large' ? 'is-large' : ''}`}>
         <section className="hero">
           {workspaceEmpty ? (
-            <h1>
-              Range <em>·</em> 0 styles
-            </h1>
+            <div className="range-hero is-empty">
+              <div>
+                <SeasonChip />
+                <div className="range-title">
+                  <h1>{CURRENT_SEASON} range</h1>
+                  <span className="range-count">· 0 styles</span>
+                </div>
+              </div>
+            </div>
           ) : (
             <>
               <div className="range-hero">
-                <div className="range-title">
-                  <h1>Range</h1>
-                  <span className="range-count">
-                    · {styles.length} {styles.length === 1 ? 'style' : 'styles'}
-                  </span>
+                <div>
+                  <SeasonChip />
+                  <div className="range-title">
+                    <h1>{CURRENT_SEASON} range</h1>
+                    <span className="range-count">
+                      · {styles.length} {styles.length === 1 ? 'style' : 'styles'}
+                    </span>
+                  </div>
                 </div>
                 <div className="range-hero-actions">
                   {checks.length > 0 ? (
@@ -358,6 +374,7 @@ export function BoardPage() {
                         setCheckOpen(true);
                       }}
                     >
+                      <span className="range-check-mark" aria-hidden="true" />
                       Check {checks.length}
                     </button>
                   ) : null}
@@ -366,7 +383,7 @@ export function BoardPage() {
                   </button>
                 </div>
               </div>
-              <div className="stats">
+              <div className="stats sr-only">
                 <div>
                   <div className="l">Styles</div>
                   <div className="v">{styles.length}</div>
@@ -405,53 +422,86 @@ export function BoardPage() {
 
         {workspaceEmpty ? null : (
           <div className="fs">
-            <div className="range-toolbar">
-              <div className="inbox-seg is-ink" role="group" aria-label="Board layout">
-                <button type="button" aria-pressed={layout === 'gallery'} onClick={() => setLayout('gallery')}>
-                  Gallery
-                </button>
-                <button type="button" aria-pressed={layout === 'table'} onClick={() => setLayout('table')}>
-                  Table
-                </button>
-              </div>
-              <div className="inbox-seg" role="group" aria-label="Columns">
-                {Object.entries(COLUMN_PRESETS).map(([name, preset]) => (
-                  <button key={name} type="button" aria-pressed={sameFields(preset)} onClick={() => setVisibleFields(new Set(preset))}>
-                    {name}
+            <div className="range-bar">
+              <div className="range-toolbar">
+                <div className="inbox-seg is-view" role="group" aria-label="Board layout">
+                  <button type="button" aria-pressed={layout === 'gallery'} onClick={() => setLayout('gallery')}>
+                    Gallery
                   </button>
-                ))}
-              </div>
-              <div className="range-group-control">
-                <span className="fs-l">Group</span>
-                <div className="inbox-seg" role="group" aria-label="Group">
-                  {(
-                    [
-                      ['none', 'None'],
-                      ['fabric', 'Fabric'],
-                      ['factoryName', 'Mill'],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <button key={value} type="button" aria-pressed={groupBy === value} onClick={() => setGroupBy(value)}>
-                      {label}
+                  <button type="button" aria-pressed={layout === 'table'} onClick={() => setLayout('table')}>
+                    Table
+                  </button>
+                </div>
+                <div className="inbox-seg" role="group" aria-label="Columns">
+                  {Object.entries(COLUMN_PRESETS).map(([name, preset]) => (
+                    <button key={name} type="button" aria-pressed={sameFields(preset)} onClick={() => setVisibleFields(new Set(preset))}>
+                      {name}
                     </button>
                   ))}
                 </div>
+                <div className="range-group-control">
+                  <span className="fs-l">Group</span>
+                  <div className="inbox-seg" role="group" aria-label="Group">
+                    {(
+                      [
+                        ['none', 'None'],
+                        ['fabric', 'Fabric'],
+                        ['factoryName', 'Mill'],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button key={value} type="button" aria-pressed={groupBy === value} onClick={() => setGroupBy(value)}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="range-toolbar-end">
+                  <div className="inbox-seg range-size" role="group" aria-label="Card size">
+                    {(
+                      [
+                        ['small', 'S'],
+                        ['medium', 'M'],
+                        ['large', 'L'],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button key={value} type="button" aria-pressed={density === value} onClick={() => setDensity(value)}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <button className="range-fields-link" type="button" aria-label="Fields" aria-expanded={fieldsOpen} onClick={() => setFieldsOpen((open) => !open)}>
+                    <span className="range-fields-long" aria-hidden="true">Fields · show, filter, group, sort</span>
+                    <span className="range-fields-short" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                        <path d="M4 6h16M7 12h10M10 18h4" />
+                      </svg>
+                      Fields · {visibleFields.size}
+                    </span>
+                  </button>
+                </div>
               </div>
-              <div className="inbox-seg" role="group" aria-label="Card size">
-                <button type="button" aria-pressed={density === 'compact'} onClick={() => setDensity('compact')}>
-                  Compact
+              <div className="range-bar-sub">
+                <button className="range-add-filter" type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
+                  + Filter
                 </button>
-                <button type="button" aria-pressed={density === 'comfortable'} onClick={() => setDensity('comfortable')}>
-                  Comfortable
-                </button>
+                <div className="range-showing">
+                  Showing <span className="count-num">{filteredStyles.length}</span> of {styles.length} styles
+                </div>
+                <span className="range-sorted">Sorted by {SORT_LABEL[sortKey]}</span>
+                <div className="search">
+                  <input
+                    type="text"
+                    placeholder="Search styles"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                  />
+                </div>
               </div>
-              <button className="btn btn-secondary" type="button" aria-expanded={fieldsOpen} onClick={() => setFieldsOpen((open) => !open)}>
-                Fields
-              </button>
             </div>
             {fieldsOpen ? (
               <fieldset className="range-fields">
                 <legend>Fields</legend>
+                <span className="range-fields-note">Show, filter, group, sort</span>
                 {RANGE_FIELDS.map((field) => (
                   <label key={field}>
                     <input type="checkbox" checked={visibleFields.has(field)} onChange={() => toggleField(field)} />
@@ -461,6 +511,8 @@ export function BoardPage() {
               </fieldset>
             ) : null}
 
+            {filtersOpen ? (
+            <>
             <div className="fs-statuses">
               <span className="fs-l">Status</span>
               <button className={`s-chip ${statusFilter === 'ALL' ? 'active' : ''}`} type="button" onClick={() => setStatusFilter('ALL')}>
@@ -520,42 +572,16 @@ export function BoardPage() {
                 </div>
               </div>
             </div>
+            </>
+            ) : null}
 
-            <div className="fs-bottom">
-              <div className="fs-tools">
-                <div className="search">
-                  <input
-                    type="text"
-                    placeholder="Search styles"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="fs-result">
-              <div>
-                Showing <span className="count-num">{filteredStyles.length}</span> of {styles.length} styles
-              </div>
-              {styles.length > 0 ? (
-                <div className="range-legend">
-                  <span>
-                    <span className="butter-pip" aria-hidden="true" /> Not checked yet
-                  </span>
-                  <span>
-                    <span className="range-disagree" aria-hidden="true">
-                      !
-                    </span>{' '}
-                    Emails disagree
-                  </span>
-                </div>
-              ) : null}
-              {stageFilter !== 'ALL' || statusFilter !== 'ALL' || searchQuery ? (
+            {stageFilter !== 'ALL' || statusFilter !== 'ALL' || searchQuery ? (
+              <div className="fs-result">
                 <button className="reset" type="button" onClick={resetFilters}>
                   Reset filters
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -665,10 +691,10 @@ export function BoardPage() {
         {workspaceEmpty ? (
           <section className="empty-range" aria-labelledby="workspace-empty-heading">
             <div className="empty-copy">
+              <HangerRail />
               <h2 id="workspace-empty-heading">Your range starts with one supplier email.</h2>
               <p>
-                Forward any email about a style: a cost sheet, a lab dip, a PO. Spindle reads it, makes the style
-                card, and puts it on this board after you check it.
+                Forward any email about a style: a cost sheet, a lab dip, a PO. Spindle reads it, makes the style card and puts it on this board.
               </p>
               <div className="empty-address-block">
                 <span className="empty-kicker">Your forwarding address</span>
@@ -688,39 +714,31 @@ export function BoardPage() {
                 )}
               </div>
               <div className="empty-actions">
-                <div>
-                  <strong>Import your range sheet</strong>
-                  <p>Not available yet. Styles still start from a supplier email.</p>
+                <div className="empty-action">
+                  <div>
+                    <strong>Import your range sheet</strong>
+                    <p>XLSX or CSV. Styles appear now, details fill in as emails arrive.</p>
+                  </div>
+                  <button type="button" className="btn btn-secondary" onClick={() => setSoonNote('Upload sheet is not available yet.')}>
+                    Upload sheet
+                  </button>
                 </div>
-                <div>
-                  <strong>See it work first</strong>
-                  <p>Not available yet. There is no sample email to send.</p>
+                <div className="empty-action">
+                  <div>
+                    <strong>See it work first</strong>
+                    <p>We send a sample supplier email. Delete the style after.</p>
+                  </div>
+                  <button type="button" className="btn btn-secondary" onClick={() => setSoonNote('Send a sample is not available yet.')}>
+                    Send a sample
+                  </button>
                 </div>
               </div>
-              <div className="empty-steps">
-                <div className="empty-steps-head">
-                  <span className="empty-kicker">Getting started</span>
-                  <span>{gettingStartedProgress(started)}</span>
-                </div>
-                <ul>
-                  {started.map((step) => (
-                    <li key={step.id} className={step.done ? 'done' : undefined}>
-                      <span>{step.label}</span>
-                      {step.done ? <span className="empty-step-note">Done</span> : null}
-                      {!step.done && !step.available ? <span className="empty-step-note">Not available yet</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {soonNote ? <p className="empty-step-note">{soonNote}</p> : null}
             </div>
-            <div className="empty-ghosts" aria-hidden="true">
-              {['Style name and number', 'Colourways', 'Production stage', 'Ex-factory date'].map((label) => (
-                <div className="empty-ghost" key={label}>
-                  <div className="swatch" />
-                  <span>{label}</span>
-                </div>
-              ))}
-            </div>
+            <EmptyGhosts />
+            <p className="empty-footnote">
+              Each card shows the garment flat, colourways and nine production stages, from tech pack to shipped.
+            </p>
           </section>
         ) : layout === 'gallery' ? (
           filtersEmpty ? (
@@ -756,6 +774,28 @@ export function BoardPage() {
               ))}
             </div>
           )
+        ) : phone ? (
+          <div className="range-phone-list">
+            {filtersEmpty ? (
+              <EmptyMatch onReset={resetFilters} />
+            ) : (
+              groups.map((group) => (
+                <section key={group.key}>
+                  {group.label ? (
+                    <div className="range-group-head">
+                      <span>{group.label}</span>
+                      <span>
+                        {group.styles.length} {group.styles.length === 1 ? 'style' : 'styles'}
+                      </span>
+                    </div>
+                  ) : null}
+                  {group.styles.map((style) => (
+                    <PhoneStyleRow key={style.id} style={style} showField={showField} />
+                  ))}
+                </section>
+              ))
+            )}
+          </div>
         ) : (
           <div
             className="range-table"
@@ -816,6 +856,22 @@ export function BoardPage() {
           </div>
         )}
 
+        {styles.length > 0 ? (
+          <div className="range-legend">
+            <span>
+              <span className="butter-pip" aria-hidden="true" />
+              Not checked yet
+              <span className="range-legend-more">. A number beside the dot counts values waiting on that style.</span>
+            </span>
+            <span>
+              <span className="range-disagree" aria-hidden="true">
+                !
+              </span>
+              Emails disagree
+            </span>
+          </div>
+        ) : null}
+
         {phone && checks.length > 0 ? (
           <div className="range-check-bar">
             <button
@@ -853,6 +909,42 @@ function tableColumns(showField: (field: RangeField) => boolean, phone = false):
   return columns;
 }
 
+function PhoneStyleRow({ style, showField }: { style: StyleCard; showField: (field: RangeField) => boolean }) {
+  const title = styleTitle(style);
+  const color = displayFact(style.fields.color);
+  const chips = color.text === '—' ? [] : colourChips(color.text);
+  const stage = boardColumnForStyle(style);
+  const stageLabel = stage === 'UNCONFIRMED' ? '' : STAGE_LABELS[stage];
+  const delivery = displayFact(style.fields.deliveryDate);
+  const status = displayFact(style.fields.status);
+  const factory = displayFact(style.fields.factoryName);
+
+  return (
+    <Link className="range-phone-row" to={`/styles/${style.id}`}>
+      <span className="range-phone-thumb" style={{ background: washFor(chips[0]?.hex) }}>
+        <GarmentMark name={title} />
+      </span>
+      <span className="range-phone-copy">
+        <span className="range-phone-name">
+          <span className="range-card-name range-clip">{title}</span>
+          {style.needsConfirmationCount > 0 ? <span className="butter-pip" aria-hidden="true" /> : null}
+        </span>
+        <span className="range-phone-sub range-clip">
+          {style.styleNumber}
+          {stageLabel ? ` · ${stageLabel}` : ''}
+        </span>
+        {showField('factoryName') && factory.text !== '—' ? (
+          <span className={`range-phone-sub range-clip ${factory.unchecked || factory.disagree ? 'is-unchecked' : ''}`}>{factory.text}</span>
+        ) : null}
+      </span>
+      <span className="range-phone-side">
+        <span>{delivery.text === '—' ? '' : delivery.text}</span>
+        {showField('status') && statusBadge(status.text) ? <StatusFlag fact={status} /> : null}
+      </span>
+    </Link>
+  );
+}
+
 function GalleryCard({ style, showField }: { style: StyleCard; showField: (field: RangeField) => boolean }) {
   const title = styleTitle(style);
   const color = displayFact(style.fields.color);
@@ -873,10 +965,8 @@ function GalleryCard({ style, showField }: { style: StyleCard; showField: (field
         {showField('status') ? <StatusFlag fact={status} /> : null}
       </div>
       <div className="range-card-title">
-        <span className="range-card-name range-clip">
-          {title}
-          {styleCreatedFromEmail(style) ? <span className="range-new">New</span> : null}
-        </span>
+        <span className="range-card-name range-clip">{title}</span>
+        {styleCreatedFromEmail(style) ? <span className="range-new">New</span> : null}
         {style.needsConfirmationCount > 0 ? (
           <span className="range-roll">
             <span className="butter-pip" aria-hidden="true" />
@@ -892,6 +982,7 @@ function GalleryCard({ style, showField }: { style: StyleCard; showField: (field
       </div>
       {supplier || showFactory ? (
         <p className={`range-card-meta range-clip ${showFactory && (factory.unchecked || factory.disagree) ? 'is-unchecked' : ''}`}>
+          <span className="range-card-code">{style.styleNumber}</span>
           {supplier ? <span>{supplier}</span> : null}
           {showFactory ? (
             <>
@@ -910,7 +1001,7 @@ function GalleryCard({ style, showField }: { style: StyleCard; showField: (field
               <span key={chip.name} style={{ background: chip.hex }} />
             ))}
           </span>
-          <span className="range-clip">{chips.map((chip) => chip.name).join(', ')}</span>
+          <span className="range-clip">{chips.map((chip) => chip.name).join(' · ')}</span>
         </div>
       ) : null}
       {showField('stage') ? <StagePips style={style} /> : null}
@@ -919,9 +1010,6 @@ function GalleryCard({ style, showField }: { style: StyleCard; showField: (field
         {showField('deliveryDate') && delivery.text !== '—' ? <FactBit fact={delivery} prefix="ex-fac " /> : null}
         {showField('costFob') && cost.text !== '—' ? <FactBit fact={cost} /> : null}
         {value ? <span className="range-value">{value}</span> : null}
-        {showField('fabric') ? <FactBit fact={displayFact(style.fields.fabric)} /> : null}
-        {showField('season') ? <FactBit fact={displayFact(style.fields.season)} /> : null}
-        {showField('currency') ? <FactBit fact={displayFact(style.fields.currency)} /> : null}
       </p>
     </>
   );
@@ -1126,6 +1214,22 @@ function SelectStyle({ name, pressed, onToggle }: { name: string; pressed: boole
         </svg>
       ) : null}
     </button>
+  );
+}
+
+function SeasonChip() {
+  return (
+    <div className="season-row">
+      <span className="season-chip">
+        {CURRENT_SEASON}
+        <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2.5 4.5 L6 8 L9.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </span>
+      <button type="button" className="season-add" disabled title="Not available yet">
+        + Season
+      </button>
+    </div>
   );
 }
 

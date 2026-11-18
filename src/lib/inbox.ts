@@ -35,6 +35,13 @@ export interface InboxItem {
   pending: ConfirmationRow | null;
 }
 
+/** Extra deliveries of the same provider message. Zero means it arrived once. */
+export function redeliveryNote(count: number | null | undefined): string | null {
+  if (!count || count < 1) return null;
+  if (count === 1) return 'Your mail provider sent this message again.';
+  return `Your mail provider sent this message again ${count} times.`;
+}
+
 /** Unassigned mail can open New from email. Assigned or listed styles cannot. */
 export function canStartNewFromEmail(email: Pick<InboxEmail, 'style'>): boolean {
   return !email.style;

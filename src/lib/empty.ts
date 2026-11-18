@@ -30,13 +30,16 @@ export function inboxSurface(input: {
   return 'review';
 }
 
+/** Shown on the range title until a season switcher exists. */
+export const CURRENT_SEASON = 'SS27';
+
 /**
- * Season, drops, and team are not products yet, so they stay unavailable.
- * Forwarding is done only when mail has actually been received.
+ * The current season is already the one on the range title, so that step is ticked.
+ * Drops and team are not products yet. Forwarding is done only after mail arrives.
  */
 export function gettingStartedSteps(hasForwardedEmail: boolean): GettingStartedStep[] {
   return [
-    { id: 'season', label: 'Pick your current season', done: false, available: false },
+    { id: 'season', label: 'Pick your current season', done: true, available: false },
     { id: 'forward', label: 'Forward your first email', done: hasForwardedEmail, available: true },
     { id: 'drops', label: 'Add drops and delivery windows', done: false, available: false },
     { id: 'team', label: 'Invite your team', done: false, available: false },

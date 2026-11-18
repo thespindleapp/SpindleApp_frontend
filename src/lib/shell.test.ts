@@ -69,6 +69,28 @@ describe('pickForwardingAddress', () => {
     );
     expect(pickForwardingAddress([account({ emailAddress: '  ' })])).toBeNull();
   });
+
+  it('shows the address that receives mail, not a personal address registered beside it', () => {
+    expect(
+      pickForwardingAddress([
+        account({
+          id: 'gmail',
+          status: 'CONNECTED',
+          emailAddress: 'snehangshu.work@gmail.com',
+          lastSyncAt: null,
+          createdAt: '2026-10-22T14:28:26.864Z',
+        }),
+        account({
+          id: 'inbound',
+          status: 'CONNECTED',
+          emailAddress: 'hello@reluebelu.resend.app',
+          displayName: 'Resend inbound',
+          lastSyncAt: '2026-11-16T08:15:48.668Z',
+          createdAt: '2026-09-27T21:37:30.627Z',
+        }),
+      ]),
+    ).toBe('hello@reluebelu.resend.app');
+  });
 });
 
 describe('workspaceForSession', () => {

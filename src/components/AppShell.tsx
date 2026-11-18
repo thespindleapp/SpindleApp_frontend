@@ -2,15 +2,18 @@ import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth-context';
 import { api, getWorkspaceId } from '../api';
-import type { InboxEmail } from '../lib/inbox';
+import { SettingsNav } from './SettingsNav';
+import { gettingStartedProgress, gettingStartedSteps } from '../lib/empty';
+import { INBOX_NEEDS_YOU_EVENT } from '../lib/inbox-progress';
+import { RANGE_COUNT_EVENT } from '../lib/range-count';
 import {
   initials,
-  needsAttentionCount,
   pickForwardingAddress,
   roleLabel,
+  TEAM_COUNT_EVENT,
   workspaceForSession,
 } from '../lib/shell';
-import type { ConfirmationRow, EmailAccount, StyleCard } from '../types';
+import type { EmailAccount } from '../types';
 
 const PHONE_QUERY = '(max-width: 720px)';
 
@@ -98,18 +101,15 @@ function AccountMenu({
         {account?.workspaceName ? <div className="muted">{account.workspaceName}</div> : null}
         {account?.role ? <div className="muted">{account.role}</div> : null}
       </div>
-      <span className="acct-menu-unavailable" role="menuitem" aria-disabled="true">
-        <span>Account settings</span>
-        <span className="acct-menu-note">Not available yet</span>
-      </span>
-      <span className="acct-menu-unavailable" role="menuitem" aria-disabled="true">
-        <span>Team members</span>
-        <span className="acct-menu-note">Not available yet</span>
-      </span>
-      <span className="acct-menu-unavailable" role="menuitem" aria-disabled="true">
-        <span>Subscription and invoices</span>
-        <span className="acct-menu-note">Not available yet</span>
-      </span>
+      <NavLink to="/settings/profile" role="menuitem" onClick={onClose}>
+        Account settings
+      </NavLink>
+      <NavLink to="/settings/team" role="menuitem" onClick={onClose}>
+        Team members
+      </NavLink>
+      <NavLink to="/settings/subscription" role="menuitem" onClick={onClose}>
+        Subscription and invoices
+      </NavLink>
       <NavLink to="/settings/email-connections" role="menuitem" onClick={onClose}>
         Forwarding addresses
       </NavLink>
@@ -131,23 +131,21 @@ export function AppShell() {
   const [forwardingAddress, setForwardingAddress] = useState<string | null>(null);
   const [forwardingKnown, setForwardingKnown] = useState(false);
   const [attention, setAttention] = useState<number | null>(null);
+  const [mailReceived, setMailReceived] = useState<number | null>(null);
   const [rangeCount, setRangeCount] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [teamCount, setTeamCount] = useState<number | null>(null);
+  const [planName, setPlanName] = useState<string | null>(null);
 
   const rangeActive = pathname === '/' || pathname.startsWith('/styles/');
   const inboxActive = pathname === '/inbox' || pathname.startsWith('/emails/');
+  const settingsMode = pathname.startsWith('/settings');
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [meResult, accountsResult, emailsResult, confirmationsResult, stylesResult] = await Promise.all([
-        load(() => api.me()),
-        load(() => api.listEmailAccounts()),
-        load(() => api.listInboxEmails()),
-        load(() => api.listConfirmations({ limit: 100 })),
-        load(() => api.listStyles({ limit: 100 })),
-      ]);
+      const meResult = await load(() => api.me());
       if (cancelled) return;
       if (meResult.ok) {
         const workspace = workspaceForSession(meResult.value.workspaces, getWorkspaceId());
@@ -164,6 +162,37 @@ export function AppShell() {
       } else {
         setAccount(null);
       }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!settingsMode) return;
+    let cancelled = false;
+    void (async () => {
+      const [members, workspace] = await Promise.all([load(() => api.listMembers()), load(() => api.getWorkspace())]);
+      if (cancelled) return;
+      if (members.ok) setTeamCount(members.value.length);
+      if (workspace.ok) setPlanName(roleLabel(workspace.value.plan));
+    })();
+    function onTeamCount(event: Event) {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (typeof detail === 'number' && Number.isFinite(detail)) setTeamCount(detail);
+    }
+    window.addEventListener(TEAM_COUNT_EVENT, onTeamCount);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(TEAM_COUNT_EVENT, onTeamCount);
+    };
+  }, [settingsMode, pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const accountsResult = await load(() => api.listEmailAccounts());
+      if (cancelled) return;
       if (accountsResult.ok) {
         setForwardingAddress(pickForwardingAddress(accountsResult.value as EmailAccount[]));
         setForwardingKnown(true);
@@ -171,21 +200,64 @@ export function AppShell() {
         setForwardingAddress(null);
         setForwardingKnown(false);
       }
-      if (emailsResult.ok && confirmationsResult.ok) {
-        setAttention(
-          needsAttentionCount(emailsResult.value as InboxEmail[], confirmationsResult.value as ConfirmationRow[]),
-        );
-      } else {
-        setAttention(null);
-      }
-      if (stylesResult.ok) {
-        setRangeCount((stylesResult.value as StyleCard[]).length);
-      } else {
-        setRangeCount(null);
-      }
     })();
     return () => {
       cancelled = true;
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let requestId = 0;
+    async function refreshRange() {
+      const id = ++requestId;
+      try {
+        const total = await api.countStyles();
+        if (!cancelled && id === requestId) setRangeCount(total);
+      } catch {
+        if (!cancelled) setRangeCount((current) => current);
+      }
+    }
+    function onRangeCount(event: Event) {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (typeof detail !== 'number' || !Number.isFinite(detail)) return;
+      requestId += 1;
+      setRangeCount(detail);
+    }
+    void refreshRange();
+    window.addEventListener(RANGE_COUNT_EVENT, onRangeCount);
+    const id = window.setInterval(() => void refreshRange(), 4000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(RANGE_COUNT_EVENT, onRangeCount);
+      window.clearInterval(id);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function refreshAttention() {
+      try {
+        const progress = await api.inboxProgress();
+        if (!cancelled) {
+          setAttention(progress.needsYou);
+          setMailReceived(progress.received);
+        }
+      } catch {
+        if (!cancelled) setAttention((current) => current);
+      }
+    }
+    function onNeedsYou(event: Event) {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (typeof detail === 'number') setAttention(detail);
+    }
+    void refreshAttention();
+    window.addEventListener(INBOX_NEEDS_YOU_EVENT, onNeedsYou);
+    const id = window.setInterval(() => void refreshAttention(), 4000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(INBOX_NEEDS_YOU_EVENT, onNeedsYou);
+      window.clearInterval(id);
     };
   }, []);
 
@@ -238,6 +310,7 @@ export function AppShell() {
 
   const inboxLabel =
     attention === null ? 'Inbox' : attention > 0 ? `Inbox, ${attention} need you` : 'Inbox, 0';
+  const started = gettingStartedSteps(mailReceived !== null && mailReceived > 0);
 
   const forwarding = forwardingKnown ? (
     forwardingAddress ? (
@@ -298,30 +371,59 @@ export function AppShell() {
             <span className="mark">spindle</span>
           </NavLink>
 
-          <nav className="side-nav" aria-label="Workspace">
-            {account?.workspaceName ? <div className="side-label">{account.workspaceName}</div> : null}
-            <NavLink to="/" end className={() => (rangeActive ? 'active' : '')}>
-              <span>Range</span>
-              {rangeCount !== null ? <span className="count">{rangeCount}</span> : null}
-            </NavLink>
-            <span className="nav-unavailable">
-              <span>Suppliers</span>
-              <span className="nav-soon">Soon</span>
-            </span>
-            <NavLink to="/inbox" className={() => (inboxActive ? 'active' : '')} aria-label={inboxLabel}>
-              <span>Inbox</span>
-              {attention !== null ? (
-                <span className="nav-attention">
-                  {attention > 0 ? <span className="butter-dot" aria-hidden="true" /> : null}
-                  <span className="count">{attention}</span>
-                </span>
-              ) : null}
-            </NavLink>
-          </nav>
+          {settingsMode ? (
+            <SettingsNav variant="side" teamCount={teamCount} plan={planName} />
+          ) : (
+            <nav className="side-nav" aria-label="Workspace">
+              {account?.workspaceName ? <div className="side-label">{account.workspaceName}</div> : null}
+              <NavLink to="/" end className={() => (rangeActive ? 'active' : '')}>
+                <span>Range</span>
+                {rangeCount !== null ? <span className="count">{rangeCount}</span> : null}
+              </NavLink>
+              <NavLink to="/suppliers">
+                <span>Suppliers</span>
+                <span className="count">0</span>
+              </NavLink>
+              <NavLink to="/inbox" className={() => (inboxActive ? 'active' : '')} aria-label={inboxLabel}>
+                <span>Inbox</span>
+                {attention !== null ? (
+                  <span className="nav-attention">
+                    {attention > 0 ? <span className="butter-dot" aria-hidden="true" /> : null}
+                    <span className="count">{attention}</span>
+                  </span>
+                ) : null}
+              </NavLink>
+            </nav>
+          )}
+
+          {!settingsMode && rangeCount === 0 ? (
+            <div className="side-start">
+              <div className="empty-steps-head">
+                <span className="side-kicker">Getting started</span>
+                <span>{gettingStartedProgress(started)}</span>
+              </div>
+              <ul>
+                {started.map((step) => (
+                  <li key={step.id} className={step.done ? 'done' : undefined}>
+                    <span className="start-mark" aria-hidden="true">
+                      {step.done ? '✓' : ''}
+                    </span>
+                    <span>{step.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <div className="side-foot">
-            {forwarding}
-            <div className="acct">
+            {settingsMode ? (
+              <NavLink to="/" className="side-back">
+                ← Back to range
+              </NavLink>
+            ) : (
+              <>
+                {forwarding}
+                <div className="acct">
               <button
                 type="button"
                 className="acct-open"
@@ -354,11 +456,14 @@ export function AppShell() {
               </button>
               {menu}
             </div>
+              </>
+            )}
           </div>
         </aside>
       )}
 
       <main className="main">
+        {phone && settingsMode ? <SettingsNav variant="bar" teamCount={teamCount} plan={planName} /> : null}
         <Outlet />
       </main>
 

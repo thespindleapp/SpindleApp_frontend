@@ -4,6 +4,7 @@ import type { InboxEmail } from './inbox';
 import {
   applyDraftChoice,
   draftNeedsStyleChoice,
+  deliveryProblems,
   exactCopyKey,
   groupMail,
   isTextEntryTarget,
@@ -119,6 +120,36 @@ describe('inbox mail view', () => {
     expect(folded?.copies.map((item) => item.id)).toEqual(['copy']);
     expect(folded?.exceptions).toEqual([]);
     expect(visibleThreads(threads, 'needs').map((thread) => thread.email.id)).toEqual([]);
+  });
+
+  it('keeps a failed copy visible under a healthy original', () => {
+    const original = email({ id: 'original', receivedAt: '2026-10-20T09:00:00.000Z' });
+    const failed = email({
+      id: 'failed-copy',
+      fromName: 'Sam',
+      receivedAt: '2026-10-22T09:00:00.000Z',
+      status: 'FAILED',
+      issueKind: 'PARSE_FAILURE',
+      duplicateOfEmailId: 'original',
+      duplicateVerdict: 'CONFIRMED',
+      style: null,
+    });
+    const healthy = email({
+      id: 'healthy-copy',
+      fromName: 'Ada',
+      receivedAt: '2026-10-23T09:00:00.000Z',
+      duplicateOfEmailId: 'original',
+      duplicateVerdict: 'CONFIRMED',
+    });
+
+    const threads = groupMail([failed, healthy, original], []);
+    expect(threads.map((thread) => thread.email.id)).toEqual(['original']);
+    const folded = threads[0];
+    expect(folded?.copies.map((copy) => copy.id)).toEqual(['failed-copy', 'healthy-copy']);
+    expect(folded?.exceptions).toEqual(['could-not-read']);
+    expect(visibleThreads(threads, 'needs').map((thread) => thread.email.id)).toEqual(['original']);
+    expect(deliveryProblems(failed)).toEqual(['could-not-read']);
+    expect(deliveryProblems(healthy)).toEqual([]);
   });
 
   it('does not treat a shared subject without a body as a copy', () => {

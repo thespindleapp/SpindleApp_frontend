@@ -2,14 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { AttachmentGrid } from '../components/AttachmentGrid';
+import { MailboxMark } from '../components/EmptyMarks';
 import { CandidatePicker } from '../components/CandidatePicker';
 import { FieldBlock } from '../components/FieldBlock';
 import { inboxSurface, isReadingStatus, supplierForwardMessage } from '../lib/empty';
-import { inboxItems, type InboxEmail } from '../lib/inbox';
-import { canRetryEmail, progressHeadline, progressPercent, progressSignature, type InboxProgress } from '../lib/inbox-progress';
+import { inboxItems, redeliveryNote, type InboxEmail } from '../lib/inbox';
+import {
+  canRetryEmail,
+  currentBatch,
+  progressHeadline,
+  progressPercent,
+  INBOX_NEEDS_YOU_EVENT,
+  progressWatchKey,
+  showsCurrentBatch,
+  type InboxProgress,
+} from '../lib/inbox-progress';
 import {
   EXCEPTION_LABEL,
   applyDraftChoice,
+  deliveryProblems,
   groupFiledThreads,
   groupMail,
   inboxSnippet,
@@ -18,7 +29,6 @@ import {
   senderLabel,
   stepException,
   styleChip,
-  threadIsFiled,
   visibleThreads,
   type InboxFilter,
   type MailThread,
@@ -73,6 +83,7 @@ export function InboxPage() {
   const [threadMessages, setThreadMessages] = useState<StyleEmail[]>([]);
   const copiedTimer = useRef<number | null>(null);
   const loadRef = useRef<() => Promise<void>>(async () => undefined);
+  const progressRef = useRef<InboxProgress | null>(null);
 
   async function load() {
     setError(null);
@@ -84,7 +95,11 @@ export function InboxPage() {
       ]);
       setEmails(received);
       setConfirmations(pending);
+      progressRef.current = snapshot;
       setProgress(snapshot);
+      if (snapshot) {
+        window.dispatchEvent(new CustomEvent(INBOX_NEEDS_YOU_EVENT, { detail: snapshot.needsYou }));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load the inbox');
     } finally {
@@ -107,8 +122,8 @@ export function InboxPage() {
   const selectedStatus = selected?.email.status ?? '';
   const selectedThreadId = selected?.email.threadId ?? null;
   const selectedHasStyle = Boolean(selected?.email.style);
-  const needCount = threads.filter((thread) => thread.exceptions.length > 0).length;
-  const filedCount = threads.filter(threadIsFiled).length;
+  const loadedNeedCount = threads.filter((thread) => thread.exceptions.length > 0).length;
+  const needCount = progress ? progress.needsYou : loadedNeedCount;
   const showReading = surface === 'reading';
   const showMail = !loading && !error && emails.length > 0 && !showReading;
 
@@ -117,8 +132,8 @@ export function InboxPage() {
   }, []);
 
   useEffect(() => {
+    if (surface === 'loading' || surface === 'error') return;
     const followList = surface === 'listening' || surface === 'reading';
-    if (!followList && !progress?.active) return;
     const id = window.setInterval(() => {
       if (followList) {
         void loadRef.current();
@@ -127,17 +142,17 @@ export function InboxPage() {
       void api
         .inboxProgress()
         .then((next) => {
-          setProgress((current) => {
-            if (!current || progressSignature(current) !== progressSignature(next)) {
-              void loadRef.current();
-            }
-            return next;
-          });
+          const previous = progressRef.current;
+          progressRef.current = next;
+          setProgress(next);
+          if (!previous || progressWatchKey(previous) !== progressWatchKey(next)) {
+            void loadRef.current();
+          }
         })
         .catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(id);
-  }, [surface, progress?.active]);
+  }, [surface]);
 
   useEffect(() => {
     if (surface === 'loading' || surface === 'error' || surface === 'reading') return;
@@ -290,73 +305,108 @@ export function InboxPage() {
   }
 
   return (
-    <div className="page inbox-page">
-      {surface === 'listening' || showReading ? (
+    <div className={`page inbox-page${surface === 'listening' ? ' is-listening' : ''}${showMail ? ' is-mail' : ''}`}>
+      {showReading ? (
         <div className="page-head">
           <div>
             <div className="eyebrow">Inbox</div>
-            <h1>{surface === 'listening' ? 'Inbox' : 'Review incoming styles'}</h1>
+            <h1>Review incoming styles</h1>
           </div>
         </div>
       ) : null}
-      {surface === 'listening' ? <p className="lede">Spindle is listening for supplier email.</p> : null}
       {error ? <div className="error">{error}</div> : null}
       {notice ? <p className="muted">{notice}</p> : null}
       {progress && progress.received > 0 ? <BatchProgress progress={progress} shown={emails.length} /> : null}
       {surface === 'loading' ? <p className="muted">Loading the inbox…</p> : null}
       {surface === 'listening' ? (
-        <section className="inbox-empty" aria-labelledby="inbox-empty-heading">
-          {forwardAddress ? <p className="empty-kicker">Listening on {forwardAddress}</p> : null}
-          {forwardAddress === null ? (
-            <p className="empty-kicker">Register a forwarding address to start listening.</p>
-          ) : null}
-          <h2 id="inbox-empty-heading">No emails yet. Send one and watch it land here.</h2>
-          <p>
-            Spindle reads each email, finds the style it is about, and pulls out dates, costs and approvals for you to
-            check.
-          </p>
-          <div className="inbox-ways">
-            <div className="inbox-way">
-              <span className="n">1</span>
-              <span>
-                <strong>Forward one email</strong>
-                <span>Pick a recent thread with a supplier and forward it as it is.</span>
-              </span>
-              {forwardAddress ? (
-                <button type="button" className="btn btn-secondary" onClick={() => void copyText('address', forwardAddress)}>
-                  {copied === 'address' ? 'Copied' : 'Copy address'}
-                </button>
-              ) : forwardAddress === null ? (
-                <Link className="btn btn-secondary" to="/settings/email-connections">
-                  Register a forwarding address
-                </Link>
-              ) : null}
+        <div className="inbox-workspace is-empty">
+          <div className="inbox-list-pane">
+            <div className="inbox-list-head">
+              <span className="inbox-forwarded">{forwardAddress ? `Forwarded to ${forwardAddress}` : 'Forwarded to'}</span>
+              <div className="inbox-title-row">
+                <h1 className="inbox-title">Inbox</h1>
+                <span className="range-count">· 0 emails</span>
+              </div>
             </div>
-            <div className="inbox-way">
-              <span className="n">2</span>
-              <span>
-                <strong>Auto-forward from Gmail or Outlook</strong>
-                <span>Not available yet. There is no mailbox sign-in.</span>
-              </span>
-            </div>
-            <div className="inbox-way">
-              <span className="n">3</span>
-              <span>
-                <strong>Ask suppliers to copy you in</strong>
-                <span>They add the address once. Every reply can arrive here too.</span>
-              </span>
-              {forwardAddress ? (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => void copyText('message', supplierForwardMessage(forwardAddress))}
-                >
-                  {copied === 'message' ? 'Copied' : 'Copy message'}
-                </button>
-              ) : null}
+            <div className="inbox-ghosts" aria-hidden="true">
+              {(
+                [
+                  ['38%', '62%', 1],
+                  ['30%', '70%', 0.7],
+                  ['42%', '55%', 0.45],
+                  ['34%', '66%', 0.25],
+                ] as const
+              ).map(([width, subject, opacity]) => (
+                <div className="inbox-ghost" key={width} style={{ opacity }}>
+                  <span className="inbox-ghost-top">
+                    <span style={{ width }} />
+                    <span />
+                  </span>
+                  <span className="inbox-ghost-subject" style={{ width: subject }} />
+                  <span className="inbox-ghost-line" />
+                </div>
+              ))}
             </div>
           </div>
-        </section>
+          <section className="inbox-empty" aria-labelledby="inbox-empty-heading">
+            <MailboxMark />
+            {forwardAddress ? (
+              <p className="listening-line">
+                <span className="listen-dot" aria-hidden="true" />
+                Listening on {forwardAddress}
+              </p>
+            ) : null}
+            {forwardAddress === null ? (
+              <p className="listening-line">Register a forwarding address to start listening.</p>
+            ) : null}
+            <h2 id="inbox-empty-heading">No emails yet. Send one and watch it land here.</h2>
+            <p>Spindle reads each email, finds the style it is about and pulls out dates, costs and approvals for you to check.</p>
+            <div className="inbox-ways">
+              <div className="inbox-way">
+                <span className="n">1</span>
+                <span>
+                  <strong>Forward one email</strong>
+                  <span>Pick a recent thread with a supplier and forward it as it is.</span>
+                </span>
+                {forwardAddress ? (
+                  <button type="button" className="btn btn-secondary" onClick={() => void copyText('address', forwardAddress)}>
+                    {copied === 'address' ? 'Copied' : 'Copy address'}
+                  </button>
+                ) : forwardAddress === null ? (
+                  <Link className="btn btn-secondary" to="/settings/email-connections">
+                    Register a forwarding address
+                  </Link>
+                ) : null}
+              </div>
+              <div className="inbox-way">
+                <span className="n">2</span>
+                <span>
+                  <strong>Auto-forward from Gmail or Outlook</strong>
+                  <span>A filter sends supplier emails here without you thinking about it.</span>
+                </span>
+                <Link className="btn btn-secondary" to="/settings/email-connections">
+                  Set up filter
+                </Link>
+              </div>
+              <div className="inbox-way">
+                <span className="n">3</span>
+                <span>
+                  <strong>Ask suppliers to copy you in</strong>
+                  <span>They add the address once. Every reply arrives here too.</span>
+                </span>
+                {forwardAddress ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => void copyText('message', supplierForwardMessage(forwardAddress))}
+                  >
+                    {copied === 'message' ? 'Copied' : 'Copy message'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        </div>
       ) : null}
       {showReading ? (
         <section className="reading-layout" aria-label="First email">
@@ -383,12 +433,10 @@ export function InboxPage() {
         <section className="inbox-workspace" aria-label="Inbox">
           <div className="inbox-list-pane" id="inbox-list">
             <div className="inbox-list-head">
-              {forwardAddress ? <p className="empty-kicker">Forwarded to {forwardAddress}</p> : null}
+              {forwardAddress ? <p className="inbox-forwarded">Forwarded to {forwardAddress}</p> : null}
               <div className="inbox-title-row">
                 <h1 className="inbox-title">Inbox</h1>
-                <span>
-                  · {needCount} need you
-                </span>
+                <span className="inbox-need">· {needCount} need you</span>
               </div>
               <div className="inbox-list-tools">
                 <div className="inbox-seg" role="group" aria-label="Inbox view">
@@ -398,11 +446,8 @@ export function InboxPage() {
                   <button type="button" aria-pressed={filter === 'needs'} onClick={() => setFilter('needs')}>
                     Needs you · {needCount}
                   </button>
-                  <button type="button" aria-pressed={filter === 'filed'} onClick={() => setFilter('filed')}>
-                    Filed · {filedCount}
-                  </button>
                 </div>
-                <span className="muted">Newest first · J / K move through exceptions</span>
+                <span className="inbox-sort">Newest first</span>
               </div>
             </div>
             <div className="inbox-rows" role="listbox" aria-label={filter === 'needs' ? 'Needs you' : filter === 'filed' ? 'Filed' : 'All mail'}>
@@ -439,6 +484,7 @@ export function InboxPage() {
           {selected ? (
             <MailDetail
               thread={selected}
+              forwardAddress={forwardAddress}
               draft={drafts[selected.email.id] ?? null}
               threadMessages={threadMessages}
               reviews={reviews}
@@ -467,10 +513,13 @@ function MailRow({ thread, selected, onSelect }: { thread: MailThread; selected:
       onClick={onSelect}
     >
       <span className="mail-meta">
-        <span>{senderLabel(email)}</span>
+        <span className="mail-from">
+          {thread.exceptions.length > 0 ? <span className={`mail-need-dot is-${thread.exceptions[0]}`} aria-hidden="true" /> : null}
+          <span>{senderLabel(email)}</span>
+        </span>
         <span>{inboxWhen(email.receivedAt)}</span>
       </span>
-      <span className="mail-subject">{email.subject || 'No subject'}</span>
+      <span className={`mail-subject${thread.exceptions.length === 0 && !email.style ? ' is-quiet' : ''}`}>{email.subject || 'No subject'}</span>
       {snippet ? <span className="mail-line">{snippet}</span> : null}
       <span className="mail-tags">
         {isReadingStatus(email.status) ? <span className="reading-tag">Reading</span> : null}
@@ -481,16 +530,25 @@ function MailRow({ thread, selected, onSelect }: { thread: MailThread; selected:
         ))}
         <span className={`mail-style${email.style ? '' : ' is-none'}`}>{styleChip(email)}</span>
         {thread.copies.length > 0 ? <span className="mail-forwarded">Also forwarded · {thread.copies.length}</span> : null}
+        {redeliveryNote(email.redeliveryCount) ? <span className="mail-forwarded">{redeliveryNote(email.redeliveryCount)}</span> : null}
       </span>
     </button>
   );
 }
 
 function BatchProgress({ progress, shown }: { progress: InboxProgress; shown: number }) {
-  const percent = progressPercent(progress);
-  const headline = progressHeadline(progress);
+  const current = currentBatch(progress);
+  const percent = progressPercent(current);
+  const headline =
+    current.state === 'completed'
+      ? progress.needsYou > 0
+        ? `Finished. ${progress.needsYou} still need you`
+        : 'Finished'
+      : progressHeadline(current);
+  const showingBatch = showsCurrentBatch(progress);
   return (
     <section className="inbox-progress" aria-label="Processing progress">
+      {showingBatch ? <p className="muted">This batch</p> : null}
       <div className="inbox-progress-head">
         <strong>{headline}</strong>
         <span>{percent}%</span>
@@ -499,14 +557,17 @@ function BatchProgress({ progress, shown }: { progress: InboxProgress; shown: nu
         <div className="inbox-progress-fill" style={{ width: `${percent}%` }} />
       </div>
       <div className="inbox-progress-counts">
-        <span>{progress.received} received</span>
-        <span>{progress.queued} queued</span>
-        <span>{progress.processing} processing</span>
-        <span>{progress.processed} filed</span>
-        <span>{progress.review} need you</span>
-        <span>{progress.failed} could not be read</span>
+        <span>{current.received} received</span>
+        <span>{current.queued} queued</span>
+        <span>{current.processing} processing</span>
+        <span>{current.processed} filed</span>
+        <span>{progress.needsYou} need you</span>
+        <span>{current.failed} could not be read</span>
         {progress.openDuplicates > 0 ? <span>{progress.openDuplicates} possible duplicates</span> : null}
       </div>
+      {showingBatch && progress.received !== current.received ? (
+        <p className="muted">Whole inbox · {progress.received} received</p>
+      ) : null}
       {shown > 0 && progress.received > shown ? <p className="muted">Showing the latest {shown} of {progress.received}.</p> : null}
     </section>
   );
@@ -514,6 +575,7 @@ function BatchProgress({ progress, shown }: { progress: InboxProgress; shown: nu
 
 function MailDetail({
   thread,
+  forwardAddress,
   draft,
   threadMessages,
   reviews,
@@ -523,6 +585,7 @@ function MailDetail({
   onReview,
 }: {
   thread: MailThread;
+  forwardAddress?: string | null;
   draft: StyleDraft | null;
   threadMessages: StyleEmail[];
   reviews: DuplicateReview[];
@@ -541,11 +604,16 @@ function MailDetail({
     <article className="inbox-detail" aria-label="Selected email">
       <header className="inbox-detail-head">
         <div className="mail-meta">
-          <span>{senderLabel(email)}</span>
+          <span>
+            {senderLabel(email)}
+            {forwardAddress ? ` · to ${forwardAddress}` : ''}
+          </span>
           <span>{inboxWhen(email.receivedAt)}</span>
         </div>
         <h2>
-          <Link to={`/emails/${email.id}`}>{email.subject || 'No subject'}</Link>
+          <Link className="inbox-subject-link" to={`/emails/${email.id}`}>
+            {email.subject || 'No subject'}
+          </Link>
         </h2>
         <div className="mail-tags">
           {reading ? <span className="reading-tag">Reading</span> : null}
@@ -565,15 +633,19 @@ function MailDetail({
             <section className="also-forwarded" aria-label="Also forwarded">
               <h3>Also forwarded</h3>
               <ul>
-                {thread.copies.map((copy) => (
-                  <li key={copy.id}>
-                    <span>
-                      Also forwarded by {senderLabel(copy)} · {inboxWhen(copy.receivedAt)}
-                      {copy.status === 'FAILED' ? ' · Could not read' : ''}
-                    </span>
-                    <Link to={`/emails/${copy.id}`}>Open email</Link>
-                  </li>
-                ))}
+                {thread.copies.map((copy) => {
+                  const problems = deliveryProblems(copy).map((kind) => EXCEPTION_LABEL[kind]);
+                  return (
+                    <li key={copy.id}>
+                      <span>
+                        Also forwarded by {senderLabel(copy)} · {inboxWhen(copy.receivedAt)}
+                        {problems.length > 0 ? ` · ${problems.join(', ')}` : ''}
+                        {redeliveryNote(copy.redeliveryCount) ? ` · ${redeliveryNote(copy.redeliveryCount)}` : ''}
+                      </span>
+                      <Link to={`/emails/${copy.id}`}>Open email</Link>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ) : null}
@@ -593,11 +665,21 @@ function MailDetail({
           ) : null}
         </div>
         <aside className="inbox-found">
-          <span className="empty-kicker">What Spindle found</span>
+          <span className="inbox-forwarded">What Spindle found</span>
           {reading ? <p>Spindle is reading this email. A clear style number is filed on the Range board when the read finishes.</p> : null}
-          {!reading && thread.exceptions.includes('could-not-read') ? (
+          {!reading && thread.exceptions.includes('could-not-read') && deliveryProblems(email).includes('could-not-read') ? (
             <p>{email.issueReason || 'Spindle could not read this email. The file is still here to open.'}</p>
           ) : null}
+          {thread.copies.map((copy) => {
+            const problems = deliveryProblems(copy);
+            if (problems.length === 0) return null;
+            return (
+              <p key={copy.id}>
+                {problems.map((kind) => EXCEPTION_LABEL[kind]).join(', ')} on the delivery from {senderLabel(copy)}.{' '}
+                <Link to={`/emails/${copy.id}`}>Open that delivery</Link>
+              </p>
+            );
+          })}
           {!reading && email.issueKind === 'REPEATED_FAILURE' ? (
             <p>Automatic retries have stopped. You can try again when you are ready.</p>
           ) : null}
@@ -613,9 +695,9 @@ function MailDetail({
                   <Link to={`/emails/${email.duplicateOfEmailId}`}>Open the original</Link>
                 </>
               ) : null}
-              {email.redeliveryCount ? ` Received again ${email.redeliveryCount} ${email.redeliveryCount === 1 ? 'time' : 'times'}.` : ''}
             </p>
           ) : null}
+          {redeliveryNote(email.redeliveryCount) ? <p>{redeliveryNote(email.redeliveryCount)}</p> : null}
           {canRetryEmail(email) ? (
             <button className="btn btn-secondary" type="button" disabled={retrying} onClick={onRetry}>
               {retrying ? 'Queuing…' : 'Try again'}
@@ -676,7 +758,7 @@ function MailDetail({
           {!reading && thread.exceptions.length === 0 && email.style ? (
             <>
               <p>This email is on {styleChip(email)}.</p>
-              <Link className="btn btn-secondary" to={`/styles/${email.style.id}`}>
+              <Link className="inbox-open-style" to={`/styles/${email.style.id}`}>
                 Open {email.style.styleNumber}
               </Link>
             </>
@@ -769,7 +851,7 @@ function WhichStyle({
           File on this style
         </button>
       </form>
-      <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => void dismiss()}>
+      <button className="inbox-dismiss" type="button" disabled={busy} onClick={() => void dismiss()}>
         Not about a style
       </button>
     </>

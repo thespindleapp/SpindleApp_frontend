@@ -105,6 +105,32 @@ export interface Workspace {
   role: string;
 }
 
+export interface WorkspaceDetail extends Workspace {
+  plan: string;
+  timezone: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
+}
+
+export interface WorkspaceMember {
+  userId: string | null;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  avatar: string | null;
+  role: string;
+  joinedAt: string | null;
+  lastLoginAt?: string | null;
+  status: 'ACTIVE' | 'PENDING';
+  expiresAt?: string;
+}
+
 export interface InvitationPreview {
   valid: true;
   email: string;

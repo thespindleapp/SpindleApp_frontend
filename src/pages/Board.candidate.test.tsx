@@ -51,11 +51,11 @@ describe('Range Board listing', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Your range starts with one supplier email.' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: /Range/ })).toBeTruthy();
-    expect(screen.getByText('0 of 4')).toBeTruthy();
-    expect(screen.getAllByText('Not available yet').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: 'Upload sheet' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Send a sample' })).toBeNull();
+    expect(screen.getByRole('heading', { name: /SS27 range/ })).toBeTruthy();
+    expect(screen.getByText(/Each card shows the garment flat/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Upload sheet' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Send a sample' })).toBeTruthy();
+    expect(screen.queryByText('Getting started')).toBeNull();
     expect(screen.queryByText(/in\.spindle\.app/)).toBeNull();
     const forward = await screen.findByRole('link', { name: 'Register a forwarding address' });
     expect(forward.getAttribute('href')).toBe('/settings/email-connections');
@@ -173,8 +173,7 @@ describe('Range Board listing', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByText('hello@studio.resend.app')).toBeTruthy();
-    expect(screen.getByText('1 of 4')).toBeTruthy();
-    expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.queryByText('Getting started')).toBeNull();
     expect(screen.queryByText(/in\.spindle\.app/)).toBeNull();
     empty.unmount();
 

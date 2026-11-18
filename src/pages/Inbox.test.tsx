@@ -61,6 +61,7 @@ vi.mock('../api', () => ({
       active: false,
       complete: false,
       state: 'empty',
+      needsYou: 0,
       openDuplicates: 0,
     }),
     reprocessEmail: vi.fn(),
@@ -69,6 +70,23 @@ vi.mock('../api', () => ({
     confirmDuplicate: vi.fn(),
   },
 }));
+
+const idleProgress = {
+  received: 0,
+  queued: 0,
+  processing: 0,
+  processed: 0,
+  review: 0,
+  failed: 0,
+  ignored: 0,
+  progress: 0,
+  active: false,
+  complete: false,
+  state: 'empty' as const,
+  needsYou: 0,
+  openDuplicates: 0,
+  batch: null,
+};
 
 afterEach(() => {
   cleanup();
@@ -81,6 +99,8 @@ afterEach(() => {
   vi.mocked(api.createStyleFromEmail).mockReset();
   vi.mocked(api.keep).mockReset();
   vi.mocked(api.reject).mockReset();
+  vi.mocked(api.inboxProgress).mockReset();
+  vi.mocked(api.inboxProgress).mockResolvedValue(idleProgress);
 });
 
 const received: InboxEmail = {
@@ -133,6 +153,33 @@ describe('Inbox', () => {
     expect(api.confirm).toHaveBeenCalled();
     expect(api.listStyleOnBoard).not.toHaveBeenCalled();
     expect(api.createStyleFromEmail).not.toHaveBeenCalled();
+  });
+
+  it('keeps the Needs you count on the workspace total after an email is set aside', async () => {
+    const user = userEvent.setup();
+    const settled = { ...idleProgress, received: 4, processed: 1, progress: 1, active: false, complete: true, state: 'completed' as const };
+    vi.mocked(api.listInboxEmails)
+      .mockResolvedValueOnce([received])
+      .mockResolvedValueOnce([{ ...received, status: 'PARSED', metadata: { filing: 'not_about_a_style' } }]);
+    vi.mocked(api.listConfirmations).mockResolvedValueOnce([proposal]).mockResolvedValueOnce([]);
+    vi.mocked(api.inboxProgress)
+      .mockResolvedValueOnce({ ...settled, needsYou: 4 })
+      .mockResolvedValueOnce({ ...settled, needsYou: 3 });
+    vi.mocked(api.markEmailNotAboutStyle).mockResolvedValue(received);
+
+    render(
+      <MemoryRouter>
+        <InboxPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Needs you · 4' })).toBeTruthy();
+    expect(screen.getByText('4 need you')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Not about a style' }));
+    expect(await screen.findByRole('button', { name: 'Needs you · 3' })).toBeTruthy();
+    expect(screen.getByText('3 need you')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Needs you · 3' }));
+    expect(await screen.findByRole('heading', { name: 'Nothing needs you' })).toBeTruthy();
   });
 
   it('opens a filed style without an add-to-board action', async () => {
@@ -191,8 +238,9 @@ describe('Inbox', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByRole('heading', { name: /No emails yet/ })).toBeTruthy();
-    expect(screen.getByText(/Spindle is listening/)).toBeTruthy();
+    expect(screen.getByText(/Register a forwarding address to start listening/)).toBeTruthy();
     expect(await screen.findByRole('link', { name: 'Register a forwarding address' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Set up filter' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Set up filter' })).toBeNull();
     expect(screen.queryByText(/in\.spindle\.app/)).toBeNull();
     expect(screen.queryByText('No emails are waiting for review.')).toBeNull();
@@ -384,6 +432,64 @@ describe('Inbox', () => {
     expect(screen.queryByRole('option', { name: /Sam/ })).toBeNull();
   });
 
+  it('shows a provider redelivery and keeps a failed copy in Needs you', async () => {
+    const user = userEvent.setup();
+    const body = 'PP sample is approved. Ex-factory is now 14 Feb.';
+    const original: InboxEmail = {
+      ...received,
+      id: 'email-original',
+      subject: 'Re: HS-5512 shipping',
+      fromName: 'Iris',
+      status: 'PARSED',
+      bodyText: body,
+      receivedAt: '2026-10-20T09:00:00.000Z',
+      redeliveryCount: 2,
+      style: { id: 'style-9', styleNumber: 'HS-5512', name: 'Sun dress', listedAt: '2026-10-01T00:00:00.000Z' },
+    };
+    const failed: InboxEmail = {
+      ...original,
+      id: 'email-failed-copy',
+      fromName: 'Sam',
+      receivedAt: '2026-10-22T15:00:00.000Z',
+      status: 'FAILED',
+      issueKind: 'PARSE_FAILURE',
+      issueReason: 'The scan could not be read.',
+      redeliveryCount: 0,
+      duplicateOfEmailId: 'email-original',
+      duplicateVerdict: 'CONFIRMED',
+      style: null,
+    };
+    const healthy: InboxEmail = {
+      ...original,
+      id: 'email-healthy-copy',
+      fromName: 'Ada',
+      receivedAt: '2026-10-23T15:00:00.000Z',
+      redeliveryCount: 0,
+      duplicateOfEmailId: 'email-original',
+      duplicateVerdict: 'CONFIRMED',
+    };
+    vi.mocked(api.listInboxEmails).mockResolvedValue([failed, healthy, original]);
+    vi.mocked(api.listConfirmations).mockResolvedValue([]);
+    vi.mocked(api.inboxProgress).mockResolvedValue({ ...idleProgress, received: 3, needsYou: 1 });
+
+    render(
+      <MemoryRouter>
+        <InboxPage />
+      </MemoryRouter>,
+    );
+
+    expect((await screen.findAllByText('Your mail provider sent this message again 2 times.')).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Needs you · 1' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Needs you · 1' }));
+    expect(screen.getByRole('option', { name: /Iris/ })).toBeTruthy();
+    expect(screen.getByText(/Also forwarded by Sam/)).toBeTruthy();
+    expect(screen.getAllByText(/Could not read/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Open that delivery' }).getAttribute('href')).toBe('/emails/email-failed-copy');
+    expect(screen.getByText(/Also forwarded by Ada/)).toBeTruthy();
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+  });
+
   it('moves through exceptions with J and K and leaves text fields alone', async () => {
     const user = userEvent.setup();
     const open: InboxEmail = {
@@ -514,6 +620,7 @@ describe('Inbox', () => {
       active: false,
       complete: true,
       state: 'completed_with_errors',
+      needsYou: 10,
       openDuplicates: 0,
     });
     vi.mocked(api.reprocessEmail).mockResolvedValue({ queued: true, emailId: 'email-failed' });
@@ -525,11 +632,219 @@ describe('Inbox', () => {
     );
 
     expect(await screen.findByText('1200 received')).toBeTruthy();
+    expect(screen.getByText('10 need you')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Needs you · 10' })).toBeTruthy();
     expect(screen.getByText('10 could not be read')).toBeTruthy();
     expect(screen.getByText('Showing the latest 1 of 1200.')).toBeTruthy();
     expect((await screen.findAllByText(/Automatic retries have stopped/)).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(api.reprocessEmail).toHaveBeenCalledWith('email-failed');
     expect(await screen.findByText('Queued to be read again.')).toBeTruthy();
+  });
+
+  it('shows the active batch instead of the inbox totals', async () => {
+    vi.mocked(api.listInboxEmails).mockResolvedValue([received]);
+    vi.mocked(api.listConfirmations).mockResolvedValue([]);
+    vi.mocked(api.inboxProgress).mockResolvedValue({
+      received: 1200,
+      queued: 0,
+      processing: 0,
+      processed: 1100,
+      review: 90,
+      failed: 10,
+      ignored: 0,
+      progress: 1,
+      active: false,
+      complete: true,
+      state: 'completed_with_errors',
+      needsYou: 7,
+      openDuplicates: 0,
+      batch: {
+        id: 'batch-live',
+        source: 'webhook',
+        startedAt: '2026-11-16T00:00:00.000Z',
+        completedAt: null,
+        received: 40,
+        queued: 10,
+        processing: 5,
+        processed: 20,
+        review: 4,
+        failed: 1,
+        ignored: 0,
+        progress: 0.625,
+        active: true,
+        complete: false,
+        state: 'processing',
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <InboxPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('This batch')).toBeTruthy();
+    expect(screen.getByText('25 of 40 settled')).toBeTruthy();
+    expect(screen.getByText('40 received')).toBeTruthy();
+    expect(screen.getByText('10 queued')).toBeTruthy();
+    expect(screen.getByText('5 processing')).toBeTruthy();
+    expect(screen.getByText('20 filed')).toBeTruthy();
+    expect(screen.getByText('7 need you')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Needs you · 7' })).toBeTruthy();
+    expect(screen.queryByText('4 need you')).toBeNull();
+    expect(screen.getByText('1 could not be read')).toBeTruthy();
+    expect(screen.getByText('Whole inbox · 1200 received')).toBeTruthy();
+    expect(screen.queryByText('1200 received')).toBeNull();
+    expect(screen.queryByText('Finished, and 10 emails need another look')).toBeNull();
+  });
+
+  it('shows the settled batch outcome instead of older inbox failures', async () => {
+    vi.mocked(api.listInboxEmails).mockResolvedValue([received]);
+    vi.mocked(api.listConfirmations).mockResolvedValue([]);
+    vi.mocked(api.inboxProgress).mockResolvedValue({
+      received: 1200,
+      queued: 0,
+      processing: 0,
+      processed: 1190,
+      review: 0,
+      failed: 10,
+      ignored: 0,
+      progress: 1,
+      active: false,
+      complete: true,
+      state: 'completed_with_errors',
+      needsYou: 9,
+      openDuplicates: 0,
+      batch: {
+        id: 'batch-done',
+        source: 'webhook',
+        startedAt: '2026-11-16T00:00:00.000Z',
+        completedAt: '2026-11-16T00:05:00.000Z',
+        received: 8,
+        queued: 0,
+        processing: 0,
+        processed: 6,
+        review: 2,
+        failed: 0,
+        ignored: 0,
+        progress: 1,
+        active: false,
+        complete: true,
+        state: 'completed',
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <InboxPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Finished. 9 still need you')).toBeTruthy();
+    expect(screen.getByText('8 received')).toBeTruthy();
+    expect(screen.getByText('9 need you')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Needs you · 9' })).toBeTruthy();
+    expect(screen.queryByText('2 need you')).toBeNull();
+    expect(screen.getByText('0 could not be read')).toBeTruthy();
+    expect(screen.queryByText('Finished, and 10 emails need another look')).toBeNull();
+    expect(screen.getByText('Whole inbox · 1200 received')).toBeTruthy();
+  });
+
+  it('notices a new batch after the inbox was idle and stops polling on unmount', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const idle = {
+      received: 20,
+      queued: 0,
+      processing: 0,
+      processed: 20,
+      review: 0,
+      failed: 0,
+      ignored: 0,
+      progress: 1,
+      active: false,
+      complete: true,
+      state: 'completed' as const,
+      needsYou: 0,
+      openDuplicates: 0,
+      batch: {
+        id: 'batch-idle',
+        source: 'webhook',
+        startedAt: '2026-11-16T00:00:00.000Z',
+        completedAt: '2026-11-16T00:05:00.000Z',
+        received: 8,
+        queued: 0,
+        processing: 0,
+        processed: 8,
+        review: 0,
+        failed: 0,
+        ignored: 0,
+        progress: 1,
+        active: false,
+        complete: true,
+        state: 'completed' as const,
+      },
+    };
+    const started = {
+      ...idle,
+      received: 23,
+      queued: 3,
+      processed: 20,
+      progress: 20 / 23,
+      active: true,
+      complete: false,
+      state: 'processing' as const,
+      batch: {
+        ...idle.batch,
+        id: 'batch-next',
+        completedAt: null,
+        received: 3,
+        queued: 3,
+        processed: 0,
+        progress: 0,
+        active: true,
+        complete: false,
+        state: 'processing' as const,
+      },
+    };
+    const snapshots = [idle, idle, started];
+    let index = 0;
+    vi.mocked(api.inboxProgress).mockImplementation(async () => snapshots[Math.min(index++, snapshots.length - 1)] ?? started);
+    vi.mocked(api.listInboxEmails).mockResolvedValue([received]);
+    vi.mocked(api.listConfirmations).mockResolvedValue([]);
+
+    const view = render(
+      <MemoryRouter>
+        <InboxPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Finished')).toBeTruthy();
+    expect(screen.getByText('8 received')).toBeTruthy();
+    expect(api.listInboxEmails).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(vi.mocked(api.inboxProgress).mock.calls.length).toBeGreaterThan(1);
+    expect(api.listInboxEmails).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Finished')).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(await screen.findByText('0 of 3 settled')).toBeTruthy();
+    expect(screen.getByText('3 received')).toBeTruthy();
+    expect(vi.mocked(api.listInboxEmails).mock.calls.length).toBeGreaterThan(1);
+
+    const callsWhileMounted = vi.mocked(api.inboxProgress).mock.calls.length;
+    view.unmount();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(12000);
+    });
+    expect(vi.mocked(api.inboxProgress).mock.calls.length).toBe(callsWhileMounted);
+    vi.useRealTimers();
   });
 });

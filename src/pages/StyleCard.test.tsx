@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../api';
@@ -139,10 +139,11 @@ describe('style card checking presentation', () => {
   it('does not put a proposed quantity in the headline as a fact', async () => {
     await renderCard(style());
     const facts = document.querySelector('.facts-row')?.textContent ?? '';
-    expect(facts).toContain('From email, check');
-    expect(facts).not.toMatch(/Quantity\s*600/);
-    expect(facts).not.toContain('Quantity600');
+    expect(facts).toContain('600');
+    expect(facts).toContain('Not checked yet');
+    expect(facts).not.toContain('Confirmed');
     expect(screen.getByText(/To check/)).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]);
     expect(screen.getAllByRole('button', { name: 'Looks right' }).length).toBeGreaterThan(0);
   });
 
@@ -188,9 +189,10 @@ describe('style card checking presentation', () => {
       }),
     );
     const facts = document.querySelector('.facts-row')?.textContent ?? '';
-    expect(facts).toContain('From email, check');
-    expect(facts).not.toContain('£19.25');
+    expect(facts).toContain('£19.25');
+    expect(facts).toContain('Not checked yet');
     expect(facts).not.toContain('$19.25');
+    expect(facts).not.toContain('Confirmed');
   });
 
   it('formats a checked GBP cost with £ and leaves a checked foreign code unlabelled', async () => {
@@ -273,7 +275,7 @@ describe('style card checking presentation', () => {
   it('renders persisted email subjects and timestamps instead of mock conversation copy', async () => {
     await renderCard(style());
     expect(screen.getAllByText('Re: Style REAL-TEST-001').length).toBeGreaterThan(0);
-    expect(screen.getByText(new Date('2026-10-05T08:15:00.000Z').toLocaleString())).toBeTruthy();
+    expect(screen.getByText('5 Oct')).toBeTruthy();
     expect(screen.queryByText('Initial development brief')).toBeNull();
     expect(screen.queryByText('12 days ago')).toBeNull();
     expect(screen.getAllByRole('link', { name: /Re: Style REAL-TEST-001/ }).length).toBeGreaterThan(0);
@@ -421,10 +423,9 @@ describe('style card checking presentation', () => {
     expect(facts).toContain('2026-11-01');
     expect(facts).toContain('Emails disagree');
     expect(facts).toContain('2026-12-01');
-    const commercials = [...document.querySelectorAll('.group-box')].find((box) => box.textContent?.includes('Commercials'));
-    expect(commercials?.textContent).toContain('USD');
-    expect(commercials?.textContent).toContain('Emails disagree');
-    expect(commercials?.textContent).not.toContain('£');
+    expect(facts).toContain('USD');
+    expect(facts).toContain('Emails disagree');
+    expect(facts).not.toContain('£');
   });
 
   it('can mark a stage complete from explicit approval evidence', async () => {
@@ -482,6 +483,7 @@ describe('style card checking presentation', () => {
         attachments: [attachment({ id: 'att-1', filename: 'img-waist-position-fit-comment.png' })],
       },
     ]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Files' }));
     expect(screen.getByText('img-waist-position-fit-comment.png')).toBeTruthy();
     expect(screen.getByText('img-mini-dress-comparison.png')).toBeTruthy();
     expect(screen.getByText('pdf-tiered-mini-dress-RSS-5602341.pdf')).toBeTruthy();
@@ -496,6 +498,7 @@ describe('style card checking presentation', () => {
     expect(screen.getByRole('heading', { name: 'No emails on this style yet.' })).toBeTruthy();
     expect(screen.getByText(/mentions REAL-TEST-001/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Add to Range Board' })).toBeNull();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Check' })[0]);
     expect(screen.getAllByRole('button', { name: 'Looks right' }).length).toBeGreaterThan(0);
     expect(await screen.findByRole('link', { name: 'Register a forwarding address' })).toBeTruthy();
     expect(screen.queryByText('tech_pack_v2.pdf')).toBeNull();
@@ -506,11 +509,13 @@ describe('style card checking presentation', () => {
     await renderCard(style(), [realEmail]);
     expect(screen.getAllByText('Re: Style REAL-TEST-001').length).toBeGreaterThan(0);
     expect(screen.queryByRole('heading', { name: 'No emails on this style yet.' })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Files' }));
     expect(screen.getByText('No files linked to this style yet.')).toBeTruthy();
   });
 
   it('shows an empty files state when linked emails have no attachments', async () => {
     await renderCard(style(), [{ ...realEmail, attachments: [] }]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Files' }));
     expect(screen.getByText('No files linked to this style yet.')).toBeTruthy();
     expect(screen.queryByText('tech_pack_v2.pdf')).toBeNull();
   });

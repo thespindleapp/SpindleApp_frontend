@@ -107,6 +107,20 @@ describe('Email detail', () => {
     expect(screen.getByText('pdf-tiered-mini-dress-RSS-5602341.pdf')).toBeTruthy();
   });
 
+  it('shows that the provider sent the same message again', async () => {
+    vi.mocked(api.getEmail).mockResolvedValue(email({ status: 'PARSED', redeliveryCount: 1, issueReason: null }));
+    render(
+      <MemoryRouter initialEntries={['/emails/email-1']}>
+        <Routes>
+          <Route path="/emails/:emailId" element={<EmailDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Your mail provider sent this message again.')).toBeTruthy();
+    expect(screen.getByText('Sent again')).toBeTruthy();
+    expect(screen.queryByText('Could not read')).toBeNull();
+  });
+
   it('shows an empty attachments state', async () => {
     vi.mocked(api.getEmail).mockResolvedValue(email({ attachments: [] }));
     render(

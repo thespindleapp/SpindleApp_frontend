@@ -9,6 +9,7 @@ vi.mock('../api', () => ({
   api: {
     listEmailAccounts: vi.fn(),
     createEmailAccount: vi.fn(),
+    removeEmailAccount: vi.fn(),
   },
   getWorkspaceId: vi.fn(() => 'workspace-selected'),
   ApiError: class ApiError extends Error {
@@ -44,12 +45,17 @@ function account(overrides: Partial<EmailAccount> = {}): EmailAccount {
 }
 
 describe('EmailConnectionsPage', () => {
-  it('shows an empty state when the workspace has no addresses', async () => {
+  it('shows the forwarding page when the workspace has no address yet', async () => {
     vi.mocked(api.listEmailAccounts).mockResolvedValue([]);
 
     render(<EmailConnectionsPage />);
 
-    expect(await screen.findByText(/no receiving addresses yet/i)).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Forwarding' })).toBeTruthy();
+    expect(await screen.findByText(/Add the address mail is forwarded to/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Set up a forwarding rule' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Who Spindle reads' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Unknown and blocked' })).toBeTruthy();
+    expect(screen.getByText('No unknown or blocked senders.')).toBeTruthy();
     expect(api.listEmailAccounts).toHaveBeenCalledTimes(1);
   });
 
@@ -58,10 +64,10 @@ describe('EmailConnectionsPage', () => {
     const user = userEvent.setup();
 
     render(<EmailConnectionsPage />);
-    await screen.findByText(/no receiving addresses yet/i);
+    await screen.findByText(/Add the address mail is forwarded to/);
 
-    await user.type(screen.getByRole('textbox', { name: 'Receiving address' }), 'not-an-email');
-    await user.click(screen.getByRole('button', { name: 'Register address' }));
+    await user.type(screen.getByRole('textbox', { name: 'Forwarding address' }), 'not-an-email');
+    await user.click(screen.getByRole('button', { name: 'Add address' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('Enter a valid email address.');
     expect(api.createEmailAccount).not.toHaveBeenCalled();
@@ -78,45 +84,62 @@ describe('EmailConnectionsPage', () => {
     const user = userEvent.setup();
 
     render(<EmailConnectionsPage />);
-    expect(screen.getByText(/exact To or recipient address/i)).toBeTruthy();
-    await screen.findByText(/no receiving addresses yet/i);
+    await screen.findByText(/Add the address mail is forwarded to/);
 
-    await user.type(screen.getByRole('textbox', { name: 'Receiving address' }), 'Hello@Studio.resend.app');
-    await user.type(screen.getByLabelText(/display name/i), 'Mill inbox');
-    await user.click(screen.getByRole('button', { name: 'Register address' }));
+    await user.type(screen.getByRole('textbox', { name: 'Forwarding address' }), 'Hello@Studio.resend.app');
+    await user.click(screen.getByRole('button', { name: 'Add address' }));
 
     expect(api.createEmailAccount).toHaveBeenCalledWith({
       emailAddress: 'hello@studio.resend.app',
-      displayName: 'Mill inbox',
     });
     expect((await screen.findByRole('status')).textContent).toContain('hello@studio.resend.app is registered');
     expect(screen.getByText('hello@studio.resend.app')).toBeTruthy();
-    expect(screen.getByText('Registered')).toBeTruthy();
-    expect(screen.getByText(/no inbound message has been matched/i)).toBeTruthy();
-    expect(screen.queryByText('Received')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy();
+    expect(screen.queryByText(/a message was delivered/i)).toBeNull();
   });
 
-  it('shows Received only after a delivery timestamp exists', async () => {
+  it('shows the address that receives mail, and lets a second address be removed', async () => {
+    const inbound = account({
+      id: 'inbound',
+      emailAddress: 'hello@reluebelu.resend.app',
+      displayName: 'Resend inbound',
+      lastSyncAt: '2026-11-16T08:15:48.668Z',
+    });
+    const personal = account({
+      id: 'gmail',
+      emailAddress: 'snehangshu.work@gmail.com',
+      displayName: null,
+      lastSyncAt: null,
+      createdAt: '2026-10-22T14:28:26.864Z',
+    });
+    vi.mocked(api.listEmailAccounts).mockResolvedValue([personal, inbound]);
+    vi.mocked(api.removeEmailAccount).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    render(<EmailConnectionsPage />);
+
+    expect(await screen.findByText('hello@reluebelu.resend.app')).toBeTruthy();
+    expect(screen.getByText(/a message was delivered to this address/i)).toBeTruthy();
+    expect(screen.getByText('snehangshu.work@gmail.com')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(1);
+
+    vi.mocked(api.listEmailAccounts).mockResolvedValue([inbound]);
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+
+    expect(api.removeEmailAccount).toHaveBeenCalledWith('gmail');
+    expect(await screen.findByText('hello@reluebelu.resend.app')).toBeTruthy();
+    expect(screen.queryByText('snehangshu.work@gmail.com')).toBeNull();
+  });
+
+  it('uses the real address in the Gmail and Outlook steps', async () => {
     vi.mocked(api.listEmailAccounts).mockResolvedValue([
-      account({ status: 'CONNECTED', lastSyncAt: '2026-10-22T12:00:00.000Z' }),
+      account({ emailAddress: 'hello@studio.resend.app', lastSyncAt: '2026-10-22T12:00:00.000Z' }),
     ]);
 
     render(<EmailConnectionsPage />);
 
-    expect(await screen.findByText('Received')).toBeTruthy();
-    expect(screen.getByText(/a message was delivered to this address/i)).toBeTruthy();
-  });
-
-  it('refreshes the registered list', async () => {
-    vi.mocked(api.listEmailAccounts).mockResolvedValue([account()]);
-    const user = userEvent.setup();
-
-    render(<EmailConnectionsPage />);
-    expect(await screen.findByText('inbox@mill.example')).toBeTruthy();
-
-    await user.click(screen.getByRole('button', { name: 'Refresh' }));
-
-    expect(api.listEmailAccounts).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText(/Forward it to hello@studio.resend.app/)).toBeTruthy();
+    expect(screen.getByText(/Forward to hello@studio.resend.app/)).toBeTruthy();
   });
 
   it('explains when the address is already registered', async () => {
@@ -125,9 +148,9 @@ describe('EmailConnectionsPage', () => {
     const user = userEvent.setup();
 
     render(<EmailConnectionsPage />);
-    await screen.findByText(/no receiving addresses yet/i);
-    await user.type(screen.getByRole('textbox', { name: 'Receiving address' }), 'hello@studio.resend.app');
-    await user.click(screen.getByRole('button', { name: 'Register address' }));
+    await screen.findByText(/Add the address mail is forwarded to/);
+    await user.type(screen.getByRole('textbox', { name: 'Forwarding address' }), 'hello@studio.resend.app');
+    await user.click(screen.getByRole('button', { name: 'Add address' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('This receiving address is already registered');
   });

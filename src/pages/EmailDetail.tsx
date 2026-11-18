@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { AttachmentGrid, AttachmentUpload } from '../components/AttachmentGrid';
+import { redeliveryNote } from '../lib/inbox';
 import { canRetryEmail } from '../lib/inbox-progress';
 import type { EmailDetail } from '../types';
 
@@ -70,10 +71,18 @@ export function EmailDetailPage() {
       </div>
       {notice ? <p className="muted">{notice}</p> : null}
       {error ? <div className="error">{error}</div> : null}
-      {email.issueReason || email.duplicateVerdict || canRetryEmail(email) ? (
+      {email.issueReason || email.duplicateVerdict || canRetryEmail(email) || redeliveryNote(email.redeliveryCount) ? (
         <section className="panel">
           <div className="panel-head">
-            <span>{email.status === 'FAILED' ? 'Could not read' : email.duplicateVerdict === 'CONFIRMED' ? 'Confirmed duplicate' : 'Needs a look'}</span>
+            <span>
+              {email.status === 'FAILED'
+                ? 'Could not read'
+                : email.duplicateVerdict === 'CONFIRMED'
+                  ? 'Confirmed duplicate'
+                  : redeliveryNote(email.redeliveryCount) && !email.issueReason
+                    ? 'Sent again'
+                    : 'Needs a look'}
+            </span>
           </div>
           {email.issueReason ? <p>{email.issueReason}</p> : null}
           {email.duplicateOfEmailId ? (
@@ -81,7 +90,7 @@ export function EmailDetailPage() {
               <Link to={`/emails/${email.duplicateOfEmailId}`}>Open the original email</Link>
             </p>
           ) : null}
-          {email.redeliveryCount ? <p>Received again {email.redeliveryCount} {email.redeliveryCount === 1 ? 'time' : 'times'}.</p> : null}
+          {redeliveryNote(email.redeliveryCount) ? <p>{redeliveryNote(email.redeliveryCount)}</p> : null}
           {canRetryEmail(email) ? (
             <button className="btn btn-secondary" type="button" disabled={retrying} onClick={() => void retry()}>
               {retrying ? 'Queuing…' : 'Try again'}
